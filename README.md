@@ -125,10 +125,11 @@ tests/
 
 ### 📋 待实现功能
 
-- [ ] 代码示例提取优化
-- [ ] 性能测试
-- [ ] 端到端测试
-- [ ] API 版本管理
+- [x] ~~代码示例提取优化~~ ✅ **已完成** - 已实现代码示例提取功能（`_extract_examples` 方法和 `get_code_examples` 工具）
+- [ ] 性能测试 - 需要添加性能基准测试和性能监控
+- [x] ~~端到端测试~~ ✅ **部分完成** - 已实现集成测试（`test_parser_integration.py`），但缺少完整的 MCP 服务器端到端测试
+- [ ] API 版本管理 - 需要实现多版本支持、版本比较和版本查询功能
+- [ ] **SSE/HTTP 远程调用支持** ⚠️ **可选功能** - 当前使用 stdio 传输（适合本地使用）。SSE/HTTP 传输可用于远程访问场景（如远程服务器、云部署），但对大多数本地用户不必要
 
 ## 开发
 
@@ -139,3 +140,9 @@ Cursor 集成指南请查看 [CURSOR_SETUP.md](CURSOR_SETUP.md)
 ## 许可证
 
 MIT
+
+## 作者
+
+- **ViVi141** - [GitHub](https://github.com/ViVi141)
+  - 邮箱: 747384120@qq.com
+  - 仓库: [https://github.com/ViVi141/Arma_Reforger_Tools_MCP](https://github.com/ViVi141/Arma_Reforger_Tools_MCP)
