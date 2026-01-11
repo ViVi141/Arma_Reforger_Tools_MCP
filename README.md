@@ -10,6 +10,13 @@
 - ⚡ **快速响应** - 基于全文索引的高性能搜索
 - 🛡️ **稳定可靠** - 完善的错误处理和验证机制
 
+## 📦 获取方式
+
+本 MCP 服务已发布至 **ModelScope** 平台，你可以：
+
+- 🌐 [在 ModelScope 上查看和安装](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP)
+- 📥 从 GitHub 克隆源码自行构建（见下方安装步骤）
+
 ## 🚀 快速开始
 
 ### 前置准备
@@ -89,6 +96,7 @@ AI 会自动调用相应的工具为你提供准确的 API 信息。
 - 📘 [安装和使用指南](INSTALLATION.md) - 详细的安装和配置说明
 - 🔧 [Cursor 集成指南](CURSOR_SETUP.md) - Cursor 集成步骤详解
 - 🧪 [测试文档](TESTING.md) - 测试说明和开发指南
+- 🌐 [ModelScope 页面](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP) - 在 ModelScope 平台上查看和使用
 
 ## 🤝 贡献
 
@@ -103,6 +111,7 @@ MIT License
 - **ViVi141** - [GitHub](https://github.com/ViVi141)
   - 邮箱: 747384120@qq.com
   - 仓库: [https://github.com/ViVi141/Arma_Reforger_Tools_MCP](https://github.com/ViVi141/Arma_Reforger_Tools_MCP)
+  - ModelScope: [https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP)
 
 ---
 
