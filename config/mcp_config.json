@@ -1,0 +1,20 @@
+{
+  "server": {
+    "name": "arma-reforger-api",
+    "version": "0.1.0",
+    "description": "Arma Reforger API MCP Server"
+  },
+  "data": {
+    "path": "data",
+    "auto_reload": false
+  },
+  "index": {
+    "search_index_dir": "data/search_index",
+    "enable_cache": true,
+    "cache_ttl": 3600
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
