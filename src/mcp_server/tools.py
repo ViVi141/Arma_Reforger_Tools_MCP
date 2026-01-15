@@ -57,7 +57,7 @@ def register_tools() -> List[Tool]:
     return [
         Tool(
             name="search_api",
-            description="搜索 Arma Reforger 或 Enfusion API（类、方法、属性、枚举）。支持自然语言查询和类型过滤。",
+            description="搜索 Arma Reforger 或 Enfusion API（类、方法、属性、枚举）以及 Wiki 页面。支持自然语言查询和类型过滤。",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -67,15 +67,15 @@ def register_tools() -> List[Tool]:
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["class", "function", "variable", "enum", "all"],
+                        "enum": ["class", "function", "variable", "enum", "wiki", "all"],
                         "default": "all",
-                        "description": "API 类型过滤，默认为 'all'"
+                        "description": "API 类型过滤，默认为 'all'。支持 'wiki' 类型搜索 Wiki 页面"
                     },
                     "api_source": {
                         "type": "string",
-                        "enum": ["arma_reforger", "enfusion", "both"],
+                        "enum": ["arma_reforger", "enfusion", "arma_reforger_wiki", "both", "all"],
                         "default": "both",
-                        "description": "API 来源，默认为 'both'"
+                        "description": "API 来源，默认为 'both'。'all' 包含所有来源（API + Wiki），'arma_reforger_wiki' 只搜索 Wiki"
                     },
                     "limit": {
                         "type": "integer",
@@ -210,11 +210,23 @@ async def handle_search_api(arguments: Dict[str, Any]) -> str:
     results = []
     
     # 处理多个 API 来源
-    sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
+    if api_source == "all":
+        sources = ["arma_reforger", "enfusion", "arma_reforger_wiki"]
+    elif api_source == "both":
+        sources = ["arma_reforger", "enfusion"]
+    else:
+        sources = [api_source]
     
     for source in sources:
         search_index = get_search_index(source)
         if search_index:
+            # 如果指定了 wiki 类型，只在 wiki 索引中搜索
+            if result_type == "wiki" and source != "arma_reforger_wiki":
+                continue
+            # 如果指定了非 wiki 类型，跳过 wiki 索引
+            if result_type != "wiki" and result_type != "all" and source == "arma_reforger_wiki":
+                continue
+            
             search_results = search_index.search(
                 query=query,
                 result_type=result_type if result_type != "all" else None,

@@ -107,3 +107,9 @@ Desktop.ini
 # 由于可能的版权原因，本仓库不进行存储
 ArmaReforgerScriptAPIPublic/
 EnfusionScriptAPIPublic/
+
+# Wiki 页面（版权保护，不包含在仓库中）
+# Wiki 页面来自 Bohemia Interactive Community Wiki
+# 由于可能的版权原因，本仓库不进行存储原始 Wiki HTML 和 JSON 文件
+# 用户需要自行从 Wiki 网站获取或使用爬虫工具下载
+wiki_pages/

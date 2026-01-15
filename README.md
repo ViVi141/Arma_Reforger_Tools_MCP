@@ -6,6 +6,7 @@
 
 - 🔍 **智能搜索** - 快速搜索 API 类、方法、属性，支持自然语言查询
 - 📚 **完整文档** - 获取详细的 API 文档和代码示例
+- 📖 **Wiki 支持** - 搜索和查询 Arma Reforger Wiki 页面内容
 - 🔗 **关系图谱** - 查看 API 之间的继承和使用关系
 - ⚡ **快速响应** - 基于全文索引的高性能搜索
 - 🛡️ **稳定可靠** - 完善的错误处理和验证机制
@@ -23,9 +24,15 @@
 
 > **注意**：原始 HTML 文档需要从 Steam 安装目录获取（由于版权原因，本仓库不包含原始文档）
 
-文档位置：`\Steam\steamapps\common\Arma Reforger Tools\Workbench\docs`
+**API 文档位置**：`\Steam\steamapps\common\Arma Reforger Tools\Workbench\docs`
 
 将 `ArmaReforgerScriptAPIPublic` 和 `EnfusionScriptAPIPublic` 目录复制到项目根目录。
+
+**Wiki 页面**（可选）：
+- Wiki 页面来自 [Bohemia Interactive Community Wiki](https://community.bistudio.com/wiki)
+- 由于可能的版权原因，本仓库不包含原始 Wiki HTML 和 JSON 文件
+- 如果需要使用 Wiki 功能，请将 Wiki 页面文件放置在 `wiki_pages/` 目录中
+- 可以使用爬虫工具从 Wiki 网站下载页面
 
 ### 安装步骤
 
@@ -42,7 +49,14 @@
 
 3. **构建索引**
    ```bash
+   # 构建 API 索引
    python -m src.parser.build_index
+   
+   # 构建 Wiki 索引（如果 wiki_pages 目录存在）
+   python -m src.parser.build_index --wiki-only
+   
+   # 或者同时构建 API 和 Wiki 索引
+   python -m src.parser.build_index --api-source arma_reforger --include-wiki
    ```
    > 这个过程可能需要几分钟时间
 
@@ -78,6 +92,11 @@
 - **"BaseWeaponComponent 有哪些方法？"**
 - **"查找与武器相关的 API"**
 - **"获取 CharacterControllerComponent 的详细信息"**
+
+### Wiki 查询
+- **"搜索 Wiki 中关于脚本的内容"**
+- **"查找 Wiki 中关于动画编辑器的页面"**
+- **"Wiki 中有哪些关于游戏主控的文档？"**
 
 ### 代码示例查询
 - **"ShowCodeExample 的使用示例"**
@@ -125,7 +144,7 @@ AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例
 
 | 工具名称 | 功能描述 | 主要参数 |
 |---------|---------|---------|
-| `search_api` | 搜索 API（类、方法、属性），支持自然语言查询 | `query`（必需）、`type`、`api_source`、`limit` |
+| `search_api` | 搜索 API（类、方法、属性）和 Wiki 页面，支持自然语言查询 | `query`（必需）、`type`（支持 `wiki`）、`api_source`（支持 `arma_reforger_wiki`、`all`）、`limit` |
 | `get_class_info` | 获取类的详细信息，包括方法、属性、继承关系、代码示例 | `class_name`（必需）、`api_source`、`include_examples` |
 | `get_function_info` | 获取方法的详细信息，包括签名、参数、返回值、描述 | `function_name`（必需）、`class_name`、`api_source` |
 | `find_related_apis` | 查找相关的 API，包括继承关系、使用关系等 | `api_name`（必需）、`api_source`、`relation_type` |
@@ -156,6 +175,7 @@ AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例
 
 - 📘 [安装和使用指南](INSTALLATION.md) - 详细的安装和配置说明
 - 🔧 [Cursor 集成指南](CURSOR_SETUP.md) - Cursor 集成步骤详解
+- 📖 [Wiki 集成说明](WIKI_INTEGRATION.md) - Wiki 页面集成和使用指南
 - 🧪 [测试文档](TESTING.md) - 测试说明和开发指南
 - 🌐 [ModelScope 页面](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP) - 在 ModelScope 平台上查看和使用
 

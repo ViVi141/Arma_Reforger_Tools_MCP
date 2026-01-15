@@ -1,14 +1,13 @@
 """构建 API 索引的主脚本"""
 
-import sys
 from pathlib import Path
 from typing import Dict, List, Any
-import json
 
 from src.parser.html_parser import HTMLParser
+from src.parser.wiki_parser import WikiParser
 from src.indexer.search_index import SearchIndex
 from src.indexer.relationship_index import RelationshipIndex
-from src.utils.helpers import save_json, get_docs_path, ensure_data_dir
+from src.utils.helpers import save_json, get_docs_path, get_wiki_pages_path, ensure_data_dir
 
 
 def find_interface_files(docs_path: Path) -> List[Path]:
@@ -90,7 +89,7 @@ def build_search_index(api_source: str = "arma_reforger") -> None:
     
     try:
         search_index.load_from_json(json_file)
-        print(f"搜索索引构建完成!")
+        print("搜索索引构建完成!")
     except Exception as e:
         print(f"构建搜索索引时出错: {e}")
 
@@ -109,9 +108,69 @@ def build_relationship_index(api_source: str = "arma_reforger") -> None:
     
     try:
         rel_index.load_data(json_file)
-        print(f"关系索引构建完成!")
+        print("关系索引构建完成!")
     except Exception as e:
         print(f"构建关系索引时出错: {e}")
+
+
+def build_wiki_index() -> Dict[str, Any]:
+    """
+    构建 Wiki 索引
+    
+    Returns:
+        构建的 Wiki 索引数据
+    """
+    print("开始构建 Wiki 索引...")
+    
+    wiki_pages_path = get_wiki_pages_path()
+    if not wiki_pages_path.exists():
+        print(f"错误: Wiki 页面路径不存在: {wiki_pages_path}")
+        return {}
+    
+    parser = WikiParser(wiki_pages_path)
+    wiki_files = parser.find_wiki_files()
+    
+    print(f"找到 {len(wiki_files)} 个 Wiki 文件")
+    
+    wiki_data = {
+        "api_source": "arma_reforger_wiki",
+        "pages": {},
+        "total_pages": 0,
+        "total_sections": 0
+    }
+    
+    processed = 0
+    for html_file, json_file in wiki_files:
+        processed += 1
+        if processed % 10 == 0:
+            print(f"已处理 {processed}/{len(wiki_files)} 个文件...")
+        
+        page_data = parser.parse_file(html_file, json_file)
+        if page_data and page_data.get("title"):
+            page_title = page_data["title"]
+            wiki_data["pages"][page_title] = page_data
+            wiki_data["total_sections"] += len(page_data.get("sections", []))
+    
+    wiki_data["total_pages"] = len(wiki_data["pages"])
+    
+    print(f"完成! 解析了 {wiki_data['total_pages']} 个 Wiki 页面, "
+          f"{wiki_data['total_sections']} 个章节")
+    
+    return wiki_data
+
+
+def build_wiki_search_index() -> None:
+    """构建 Wiki 搜索索引"""
+    print("开始构建 Wiki 搜索索引...")
+    
+    json_file = "arma_reforger_wiki.json"
+    search_index = SearchIndex("arma_reforger_wiki")
+    
+    try:
+        search_index.load_from_json(json_file)
+        print("Wiki 搜索索引构建完成!")
+    except Exception as e:
+        print(f"构建 Wiki 搜索索引时出错: {e}")
 
 
 def main():
@@ -140,16 +199,40 @@ def main():
         action="store_true",
         help="跳过关系索引构建"
     )
+    parser.add_argument(
+        "--include-wiki",
+        action="store_true",
+        help="包含 Wiki 页面索引构建"
+    )
+    parser.add_argument(
+        "--wiki-only",
+        action="store_true",
+        help="只构建 Wiki 索引"
+    )
     
     args = parser.parse_args()
     
     ensure_data_dir()
     
+    # 如果只构建 Wiki，跳过 API 构建
+    if args.wiki_only:
+        if not args.skip_parse:
+            wiki_data = build_wiki_index()
+            save_json(wiki_data, "arma_reforger_wiki.json")
+            print("已保存 Wiki 数据到 data/arma_reforger_wiki.json")
+        
+        if not args.skip_search_index:
+            build_wiki_search_index()
+        
+        print("Wiki 索引构建完成!")
+        return
+    
+    # 构建 API 索引
     if args.api_source in ["arma_reforger", "both"]:
         if not args.skip_parse:
             arma_data = build_api_index("arma_reforger")
             save_json(arma_data, "arma_reforger_api.json")
-            print(f"已保存 Arma Reforger API 数据到 data/arma_reforger_api.json")
+            print("已保存 Arma Reforger API 数据到 data/arma_reforger_api.json")
         
         if not args.skip_search_index:
             build_search_index("arma_reforger")
@@ -161,13 +244,23 @@ def main():
         if not args.skip_parse:
             enfusion_data = build_api_index("enfusion")
             save_json(enfusion_data, "enfusion_api.json")
-            print(f"已保存 Enfusion API 数据到 data/enfusion_api.json")
+            print("已保存 Enfusion API 数据到 data/enfusion_api.json")
         
         if not args.skip_search_index:
             build_search_index("enfusion")
         
         if not args.skip_relationship_index:
             build_relationship_index("enfusion")
+    
+    # 构建 Wiki 索引（如果启用）
+    if args.include_wiki:
+        if not args.skip_parse:
+            wiki_data = build_wiki_index()
+            save_json(wiki_data, "arma_reforger_wiki.json")
+            print("已保存 Wiki 数据到 data/arma_reforger_wiki.json")
+        
+        if not args.skip_search_index:
+            build_wiki_search_index()
     
     print("索引构建完成!")
 

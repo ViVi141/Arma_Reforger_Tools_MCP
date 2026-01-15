@@ -36,12 +36,14 @@ class SearchIndex:
         self.schema = Schema(
             name=ID(stored=True),
             full_name=TEXT(stored=True),
-            type=TEXT(stored=True),  # class, function, variable, enum
+            type=TEXT(stored=True),  # class, function, variable, enum, wiki
             api_source=ID(stored=True),
             description=TEXT,
             signature=TEXT,
             return_type=TEXT,
             class_name=TEXT(stored=True),
+            url=TEXT(stored=True),  # Wiki URL
+            categories=KEYWORD(stored=True),  # Wiki categories
             content=TEXT  # 全文搜索内容
         )
         
@@ -70,23 +72,33 @@ class SearchIndex:
         writer = self._index.writer()
         
         try:
-            # 索引类
-            classes = api_data.get("classes", {})
-            for class_name, class_data in classes.items():
-                self._index_class(writer, class_data)
+            # 检查是否是 Wiki 数据
+            if api_data.get("api_source") == "arma_reforger_wiki" or "pages" in api_data:
+                # 索引 Wiki 页面
+                pages = api_data.get("pages", {})
+                for page_title, page_data in pages.items():
+                    self._index_wiki_page(writer, page_data)
                 
-                # 索引类的方法
-                methods = class_data.get("methods", [])
-                for method in methods:
-                    self._index_method(writer, method, class_name)
+                writer.commit()
+                print(f"索引构建完成: {len(pages)} 个 Wiki 页面已索引")
+            else:
+                # 索引 API 类
+                classes = api_data.get("classes", {})
+                for class_name, class_data in classes.items():
+                    self._index_class(writer, class_data)
+                    
+                    # 索引类的方法
+                    methods = class_data.get("methods", [])
+                    for method in methods:
+                        self._index_method(writer, method, class_name)
+                    
+                    # 索引类的属性
+                    properties = class_data.get("properties", [])
+                    for prop in properties:
+                        self._index_property(writer, prop, class_name)
                 
-                # 索引类的属性
-                properties = class_data.get("properties", [])
-                for prop in properties:
-                    self._index_property(writer, prop, class_name)
-            
-            writer.commit()
-            print(f"索引构建完成: {len(classes)} 个类已索引")
+                writer.commit()
+                print(f"索引构建完成: {len(classes)} 个类已索引")
             
         except Exception as e:
             writer.cancel()
@@ -164,6 +176,42 @@ class SearchIndex:
             signature="",
             return_type="",
             class_name=class_name,
+            url="",
+            categories="",
+            content=" ".join(content_parts)
+        )
+
+    def _index_wiki_page(self, writer, page_data: Dict[str, Any]) -> None:
+        """索引 Wiki 页面"""
+        title = page_data.get("title", "")
+        description = page_data.get("description", "")
+        full_text = page_data.get("full_text", "")
+        url = page_data.get("url", "")
+        categories = " ".join(page_data.get("categories", []))
+        
+        # 构建搜索内容
+        content_parts = [
+            title,
+            description,
+            full_text
+        ]
+        
+        # 添加章节标题
+        for section in page_data.get("sections", []):
+            content_parts.append(section.get("title", ""))
+            content_parts.append(section.get("content", ""))
+        
+        writer.add_document(
+            name=title,
+            full_name=title,
+            type="wiki",
+            api_source=self.api_source,
+            description=description,
+            signature="",
+            return_type="",
+            class_name="",
+            url=url,
+            categories=categories,
             content=" ".join(content_parts)
         )
 
@@ -216,7 +264,7 @@ class SearchIndex:
             search_results = searcher.search(final_query, limit=limit)
             
             for result in search_results:
-                results.append({
+                result_dict = {
                     "name": result.get("name", ""),
                     "full_name": result.get("full_name", ""),
                     "type": result.get("type", ""),
@@ -226,7 +274,14 @@ class SearchIndex:
                     "return_type": result.get("return_type", ""),
                     "class_name": result.get("class_name", ""),
                     "relevance_score": result.score
-                })
+                }
+                
+                # 如果是 Wiki 页面，添加额外字段
+                if result.get("type") == "wiki":
+                    result_dict["url"] = result.get("url", "")
+                    result_dict["categories"] = result.get("categories", "")
+                
+                results.append(result_dict)
         
         return results
 

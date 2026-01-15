@@ -56,3 +56,9 @@ def get_docs_path(api_source: str = "arma_reforger") -> Path:
         return base_path / "EnfusionScriptAPIPublic"
     else:
         raise ValueError(f"Unknown API source: {api_source}")
+
+
+def get_wiki_pages_path() -> Path:
+    """获取 Wiki 页面目录路径"""
+    base_path = Path(__file__).parent.parent.parent
+    return base_path / "wiki_pages"

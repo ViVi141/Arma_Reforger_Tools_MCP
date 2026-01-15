@@ -6,6 +6,8 @@
 
 **重要说明**：
 
+#### API 文档
+
 原始 HTML 文档文件（`ArmaReforgerScriptAPIPublic/` 和 `EnfusionScriptAPIPublic/`）位于 Steam 安装目录：
 ```
 \Steam\steamapps\common\Arma Reforger Tools\Workbench\docs
@@ -17,6 +19,20 @@
 - 这些文档由 Doxygen 生成，属于 Arma Reforger Tools 的一部分
 - 本仓库只包含索引构建工具和生成的索引数据
 - 用户需要自行从 Steam 安装目录获取原始文档
+
+#### Wiki 页面（可选）
+
+**版权说明**：
+- Wiki 页面来自 [Bohemia Interactive Community Wiki](https://community.bistudio.com/wiki)
+- 由于可能的版权原因，本仓库**不包含**原始 Wiki HTML 和 JSON 文件
+- 如果需要使用 Wiki 功能，请将 Wiki 页面文件放置在 `wiki_pages/` 目录中
+- 可以使用爬虫工具从 Wiki 网站下载页面
+- 使用 Wiki 内容时请遵守 Bohemia Interactive 的版权和使用条款
+
+**获取方式**：
+- 从 Wiki 网站手动下载或使用爬虫工具
+- 文件应包含 HTML 和对应的 JSON 元数据文件（可选）
+- 文件命名格式：`Arma_Reforger_*.html` 和 `Arma_Reforger_*.json`
 
 ### 1. 安装依赖
 
