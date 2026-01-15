@@ -369,7 +369,14 @@ async def handle_find_related_apis(arguments: Dict[str, Any]) -> str:
 
 
 async def handle_get_code_examples(arguments: Dict[str, Any]) -> str:
-    """处理 get_code_examples 工具调用"""
+    """
+    处理 get_code_examples 工具调用
+    
+    支持从以下位置查找代码示例：
+    1. 类级别的示例
+    2. 方法级别的示例
+    3. 支持部分匹配类名和方法名
+    """
     api_name = arguments.get("api_name", "")
     api_source = arguments.get("api_source", "both")
     language = arguments.get("language", "enforce")
@@ -386,6 +393,8 @@ async def handle_get_code_examples(arguments: Dict[str, Any]) -> str:
     sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
     
     examples = []
+    matched_classes = []
+    matched_methods = []
     
     for source in sources:
         api_data = load_json(f"{source}_api.json")
@@ -394,24 +403,96 @@ async def handle_get_code_examples(arguments: Dict[str, Any]) -> str:
         
         classes = api_data.get("classes", {})
         
-        # 查找类中的示例
+        # 精确匹配类名
         if api_name in classes:
             class_data = classes[api_name]
+            matched_classes.append({
+                "name": api_name,
+                "api_source": source,
+                "type": "class"
+            })
+            # 提取类级别的示例
             for example in class_data.get("examples", []):
                 if language == "all" or example.get("language") == language:
-                    examples.append(example)
+                    example_with_context = example.copy()
+                    example_with_context["context"] = {
+                        "type": "class",
+                        "class_name": api_name,
+                        "api_source": source
+                    }
+                    examples.append(example_with_context)
         
-        # 查找方法中的示例（如果有）
+        # 部分匹配类名
+        for cls_name, class_data in classes.items():
+            if api_name.lower() in cls_name.lower() and cls_name != api_name:
+                matched_classes.append({
+                    "name": cls_name,
+                    "api_source": source,
+                    "type": "class"
+                })
+                # 提取类级别的示例
+                for example in class_data.get("examples", []):
+                    if language == "all" or example.get("language") == language:
+                        example_with_context = example.copy()
+                        example_with_context["context"] = {
+                            "type": "class",
+                            "class_name": cls_name,
+                            "api_source": source
+                        }
+                        examples.append(example_with_context)
+        
+        # 查找方法中的示例
         for cls_name, class_data in classes.items():
             for method in class_data.get("methods", []):
-                if method.get("name") == api_name:
-                    # 方法可能也有示例（如果后续添加）
-                    pass
+                method_name = method.get("name", "")
+                
+                # 精确匹配方法名
+                if method_name == api_name:
+                    matched_methods.append({
+                        "name": method_name,
+                        "class_name": cls_name,
+                        "api_source": source,
+                        "type": "method"
+                    })
+                    # 提取方法级别的示例
+                    for example in method.get("examples", []):
+                        if language == "all" or example.get("language") == language:
+                            example_with_context = example.copy()
+                            example_with_context["context"] = {
+                                "type": "method",
+                                "method_name": method_name,
+                                "class_name": cls_name,
+                                "api_source": source
+                            }
+                            examples.append(example_with_context)
+                
+                # 部分匹配方法名
+                elif api_name.lower() in method_name.lower():
+                    matched_methods.append({
+                        "name": method_name,
+                        "class_name": cls_name,
+                        "api_source": source,
+                        "type": "method"
+                    })
+                    # 提取方法级别的示例
+                    for example in method.get("examples", []):
+                        if language == "all" or example.get("language") == language:
+                            example_with_context = example.copy()
+                            example_with_context["context"] = {
+                                "type": "method",
+                                "method_name": method_name,
+                                "class_name": cls_name,
+                                "api_source": source
+                            }
+                            examples.append(example_with_context)
     
+    # 构建响应
     response = {
         "api_name": api_name,
         "examples": examples,
-        "total": len(examples)
+        "total": len(examples),
+        "matched_classes": matched_classes[:10],  # 限制返回数量
+        "matched_methods": matched_methods[:10]
     }
     
     return json.dumps(response, ensure_ascii=False, indent=2)

@@ -73,23 +73,84 @@
 
 配置完成后，在 Cursor 中可以直接问 AI：
 
+### 基础查询
 - **"如何获取玩家的当前武器？"**
 - **"BaseWeaponComponent 有哪些方法？"**
 - **"查找与武器相关的 API"**
 - **"获取 CharacterControllerComponent 的详细信息"**
-- **"ShowCodeExample 的使用示例"**
 
-AI 会自动调用相应的工具为你提供准确的 API 信息。
+### 代码示例查询
+- **"ShowCodeExample 的使用示例"**
+- **"获取 BaseWeaponComponent 的代码示例"**
+- **"如何创建武器组件？给我代码示例"**
+- **"GetWeapon 方法的示例代码"**
+- **"查找所有关于玩家控制的代码示例"**
+
+AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例。
+
+### 代码示例功能说明
+
+`get_code_examples` 工具支持：
+
+1. **多来源查找**：从类级别和方法级别查找代码示例
+2. **智能匹配**：支持精确匹配和部分匹配类名、方法名
+3. **语言过滤**：支持按语言过滤（enforce、c++、all）
+4. **上下文信息**：每个示例包含完整的上下文信息（所属类、方法等）
+5. **丰富元数据**：示例包含标题、描述、语言类型等信息
+
+**返回格式示例**：
+```json
+{
+  "api_name": "BaseWeaponComponent",
+  "examples": [
+    {
+      "code": "BaseWeaponComponent weapon = GetWeapon();\nif (weapon) {\n    // 使用武器组件\n}",
+      "language": "enforce",
+      "description": "获取武器组件的示例",
+      "title": "使用示例",
+      "context": {
+        "type": "class",
+        "class_name": "BaseWeaponComponent",
+        "api_source": "arma_reforger"
+      }
+    }
+  ],
+  "total": 1,
+  "matched_classes": [...],
+  "matched_methods": [...]
+}
+```
 
 ## 📖 可用工具
 
-| 工具名称 | 功能描述 |
-|---------|---------|
-| `search_api` | 搜索 API（类、方法、属性） |
-| `get_class_info` | 获取类的详细信息 |
-| `get_function_info` | 获取方法的详细信息 |
-| `find_related_apis` | 查找相关的 API |
-| `get_code_examples` | 获取代码示例 |
+| 工具名称 | 功能描述 | 主要参数 |
+|---------|---------|---------|
+| `search_api` | 搜索 API（类、方法、属性），支持自然语言查询 | `query`（必需）、`type`、`api_source`、`limit` |
+| `get_class_info` | 获取类的详细信息，包括方法、属性、继承关系、代码示例 | `class_name`（必需）、`api_source`、`include_examples` |
+| `get_function_info` | 获取方法的详细信息，包括签名、参数、返回值、描述 | `function_name`（必需）、`class_name`、`api_source` |
+| `find_related_apis` | 查找相关的 API，包括继承关系、使用关系等 | `api_name`（必需）、`api_source`、`relation_type` |
+| `get_code_examples` | 获取代码示例，支持从类和方法中查找，包含完整的上下文信息 | `api_name`（必需）、`api_source`、`language` |
+
+### 工具详细说明
+
+#### `get_code_examples` - 代码示例工具
+
+**功能**：
+- 从类级别和方法级别查找代码示例
+- 支持精确匹配和部分匹配
+- 自动检测代码语言（enforce、c++）
+- 提取示例的标题、描述和上下文信息
+
+**参数**：
+- `api_name`（必需）：要查找的 API 名称（类名或方法名）
+- `api_source`（可选）：API 来源，可选值：`"arma_reforger"`、`"enfusion"`、`"both"`（默认）
+- `language`（可选）：代码语言过滤，可选值：`"enforce"`（默认）、`"c++"`、`"all"`
+
+**使用场景**：
+- 查找特定类的使用示例
+- 查找特定方法的调用示例
+- 学习 API 的最佳实践
+- 获取代码模板和参考实现
 
 ## 📚 文档
 

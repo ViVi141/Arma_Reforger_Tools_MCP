@@ -194,7 +194,7 @@ void ExampleFunction() {
         soup = BeautifulSoup(html_complex_method, "lxml")
         row = soup.find("tr")
         
-        method = parser._parse_method_row(row)
+        method = parser._parse_method_row(row, soup)
         
         assert method is not None
         assert "name" in method
@@ -318,9 +318,16 @@ class TestHTMLParserErrorHandling:
         
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html_no_methods, "lxml")
-        methods = parser._extract_methods(soup)
+        table = soup.find("table", class_="memberdecls")
+        # 如果没有表格，创建一个空的 Tag 对象用于测试
+        if table is None:
+            from bs4 import Tag
+            table = Tag(name="table", attrs={"class": "memberdecls"})
+            soup.append(table)
+        methods = parser._extract_methods(table, soup)
         
         assert isinstance(methods, list)
+        assert len(methods) == 0  # 没有表格应该返回空列表
     
     def test_extract_properties_with_no_table(self, parser):
         """测试在没有属性表格时提取属性"""
@@ -436,7 +443,7 @@ class TestHTMLParserEdgeCases:
         soup = BeautifulSoup(html_no_desc, "lxml")
         row = soup.find("tr")
         
-        method = parser._parse_method_row(row)
+        method = parser._parse_method_row(row, soup)
         
         assert method is not None
         assert method["name"] == "NoDesc"

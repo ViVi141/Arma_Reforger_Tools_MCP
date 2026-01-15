@@ -91,7 +91,7 @@ class TestHTMLParser:
         soup = BeautifulSoup(sample_class_html, "lxml")
         table = soup.find("table", class_="memberdecls")
         
-        methods = parser._extract_methods(table)
+        methods = parser._extract_methods(table, soup)
         
         assert len(methods) > 0
         assert any(m["name"] == "GetUIInfo" for m in methods)
@@ -102,7 +102,7 @@ class TestHTMLParser:
         table = soup.find("table", class_="memberdecls")
         row = table.find("tr", class_="memitem")
         
-        method = parser._parse_method_row(row)
+        method = parser._parse_method_row(row, soup)
         
         assert method is not None
         assert method["name"] == "GetUIInfo"

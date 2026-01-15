@@ -122,7 +122,7 @@ class HTMLParser:
         # 提取方法
         methods_table = soup.find("table", class_="memberdecls")
         if methods_table:
-            class_data["methods"] = self._extract_methods(methods_table)
+            class_data["methods"] = self._extract_methods(methods_table, soup)
 
         # 提取属性（如果有）
         # 查找属性相关的表格或部分
@@ -186,42 +186,183 @@ class HTMLParser:
         return None
 
     def _extract_examples(self, soup: BeautifulSoup) -> List[Dict[str, str]]:
-        """提取代码示例"""
+        """
+        提取代码示例
+        
+        支持多种代码块格式：
+        - div.fragment (Doxygen 标准格式)
+        - pre.code (标准 HTML 代码块)
+        - code 标签内的代码
+        """
         examples = []
         
-        # 查找代码片段
+        # 方法1: 查找 Doxygen 格式的代码片段 (div.fragment)
         code_fragments = soup.find_all("div", class_="fragment")
         for fragment in code_fragments:
-            code_text = fragment.get_text()
+            example = self._parse_code_fragment(fragment)
+            if example:
+                examples.append(example)
+        
+        # 方法2: 查找标准 HTML 代码块 (pre.code)
+        pre_blocks = soup.find_all("pre")
+        for pre_block in pre_blocks:
+            # 跳过已经在 fragment 中的代码块
+            if pre_block.find_parent("div", class_="fragment"):
+                continue
+            
+            code_elem = pre_block.find("code")
+            if code_elem:
+                code_text = code_elem.get_text()
+            else:
+                code_text = pre_block.get_text()
+            
             if code_text.strip():
+                # 尝试从上下文提取描述
+                description = self._extract_example_description(pre_block)
+                language = self._detect_language(code_text)
+                
                 examples.append({
                     "code": clean_text(code_text),
-                    "language": "enforce",  # Arma Reforger 使用 Enforce 脚本
-                    "description": ""
+                    "language": language,
+                    "description": description,
+                    "title": ""
                 })
         
+        # 方法3: 查找带标题的示例部分
+        example_sections = soup.find_all(
+            ["h2", "h3", "h4"],
+            string=re.compile(r".*[Ee]xample.*|.*[Cc]ode.*|.*[Uu]sage.*", re.I)
+        )
+        for section in example_sections:
+            # 查找该标题下的代码块
+            next_elem = section.find_next_sibling()
+            while next_elem:
+                if next_elem.name in ["h2", "h3", "h4"]:
+                    break
+                
+                code_frag = next_elem.find("div", class_="fragment")
+                if code_frag:
+                    example = self._parse_code_fragment(code_frag)
+                    if example:
+                        example["title"] = clean_text(section.get_text())
+                        examples.append(example)
+                    break
+                
+                pre_block = next_elem.find("pre")
+                if pre_block:
+                    code_text = pre_block.get_text()
+                    if code_text.strip():
+                        examples.append({
+                            "code": clean_text(code_text),
+                            "language": self._detect_language(code_text),
+                            "description": self._extract_example_description(next_elem),
+                            "title": clean_text(section.get_text())
+                        })
+                    break
+                
+                next_elem = next_elem.find_next_sibling()
+        
         return examples
+    
+    def _parse_code_fragment(self, fragment: Tag) -> Optional[Dict[str, str]]:
+        """解析单个代码片段"""
+        code_text = fragment.get_text()
+        if not code_text.strip():
+            return None
+        
+        # 尝试从父元素或前一个元素提取描述
+        description = self._extract_example_description(fragment)
+        
+        # 检测语言
+        language = self._detect_language(code_text)
+        
+        # 尝试提取标题
+        title = ""
+        prev_elem = fragment.find_previous_sibling()
+        if prev_elem and prev_elem.name in ["h2", "h3", "h4", "p"]:
+            title_text = prev_elem.get_text().strip()
+            if title_text and len(title_text) < 100:  # 避免过长的文本作为标题
+                title = clean_text(title_text)
+        
+        return {
+            "code": clean_text(code_text),
+            "language": language,
+            "description": description,
+            "title": title
+        }
+    
+    def _extract_example_description(self, code_element: Tag) -> str:
+        """从代码元素周围提取描述"""
+        description = ""
+        
+        # 查找前一个段落或 div
+        prev_elem = code_element.find_previous_sibling()
+        if prev_elem:
+            if prev_elem.name == "p":
+                desc_text = prev_elem.get_text().strip()
+                if desc_text and not desc_text.startswith("<"):
+                    description = clean_text(desc_text)
+            elif prev_elem.name == "div" and "textblock" in prev_elem.get("class", []):
+                desc_text = prev_elem.get_text().strip()
+                if desc_text:
+                    description = clean_text(desc_text)
+        
+        # 如果没有找到，查找父元素中的描述
+        if not description:
+            parent = code_element.find_parent(["div", "section"])
+            if parent:
+                # 查找父元素中的文本块
+                text_blocks = parent.find_all("div", class_="textblock")
+                for text_block in text_blocks:
+                    if text_block.find("div", class_="fragment") == code_element:
+                        desc_text = text_block.get_text().strip()
+                        if desc_text:
+                            description = clean_text(desc_text)
+                            break
+        
+        return description
+    
+    def _detect_language(self, code_text: str) -> str:
+        """检测代码语言"""
+        code_lower = code_text.lower().strip()
+        
+        # 检测 C++ 特征
+        cpp_keywords = ["#include", "namespace", "class", "public:", "private:", "std::"]
+        if any(keyword in code_lower for keyword in cpp_keywords):
+            return "c++"
+        
+        # 检测 Enforce 特征
+        enforce_keywords = [
+            "proto", "external", "class", "void", "int", "float", "string",
+            "bool", "array", "ref", "autoptr", "override"
+        ]
+        if any(keyword in code_lower for keyword in enforce_keywords):
+            return "enforce"
+        
+        # 默认返回 enforce（Arma Reforger 主要使用 Enforce）
+        return "enforce"
 
-    def _extract_methods(self, table: Tag) -> List[Dict[str, Any]]:
+    def _extract_methods(self, table: Tag, soup: BeautifulSoup) -> List[Dict[str, Any]]:
         """从方法表中提取方法信息"""
         methods = []
         
         rows = table.find_all("tr", class_="memitem")
         for row in rows:
-            method = self._parse_method_row(row)
+            method = self._parse_method_row(row, soup)
             if method:
                 methods.append(method)
         
         return methods
 
-    def _parse_method_row(self, row: Tag) -> Optional[Dict[str, Any]]:
+    def _parse_method_row(self, row: Tag, soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
         """解析单个方法行"""
         method = {
             "name": "",
             "signature": "",
             "description": "",
             "return_type": "",
-            "parameters": []
+            "parameters": [],
+            "examples": []
         }
 
         # 提取方法名和签名
@@ -253,10 +394,45 @@ class HTMLParser:
             desc_elem = mem_desc.find("td", class_="mdescRight")
             if desc_elem:
                 method["description"] = clean_text(desc_elem.get_text())
+                
+                # 在描述区域查找代码示例
+                method_examples = self._extract_method_examples(desc_elem)
+                if method_examples:
+                    method["examples"] = method_examples
 
         if method["name"]:
             return method
         return None
+    
+    def _extract_method_examples(self, desc_elem: Tag) -> List[Dict[str, str]]:
+        """从方法描述区域提取代码示例"""
+        examples = []
+        
+        # 查找描述中的代码片段
+        code_fragments = desc_elem.find_all("div", class_="fragment")
+        for fragment in code_fragments:
+            example = self._parse_code_fragment(fragment)
+            if example:
+                examples.append(example)
+        
+        # 查找 pre 标签中的代码
+        pre_blocks = desc_elem.find_all("pre")
+        for pre_block in pre_blocks:
+            code_elem = pre_block.find("code")
+            if code_elem:
+                code_text = code_elem.get_text()
+            else:
+                code_text = pre_block.get_text()
+            
+            if code_text.strip():
+                examples.append({
+                    "code": clean_text(code_text),
+                    "language": self._detect_language(code_text),
+                    "description": "",
+                    "title": ""
+                })
+        
+        return examples
 
     def _extract_parameters(self, mem_item_right: Tag) -> List[Dict[str, str]]:
         """从方法行中提取参数"""
