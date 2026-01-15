@@ -165,7 +165,7 @@ AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例
 
 ## 📄 许可证
 
-MIT License
+AGPL-3.0 license
 
 ## 👤 作者
 
