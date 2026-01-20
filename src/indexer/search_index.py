@@ -33,8 +33,9 @@ class SearchIndex:
         self.index_dir.mkdir(parents=True, exist_ok=True)
         
         # 定义索引 schema
+        # 注意：name 使用 TEXT 而不是 ID，以支持通配符和部分匹配搜索
         self.schema = Schema(
-            name=ID(stored=True),
+            name=TEXT(stored=True),  # 改为 TEXT 以支持通配符搜索
             full_name=TEXT(stored=True),
             type=TEXT(stored=True),  # class, function, variable, enum, wiki
             api_source=ID(stored=True),
@@ -242,23 +243,62 @@ class SearchIndex:
         
         with self._index.searcher() as searcher:
             # 构建查询
-            if result_type:
-                # 多字段查询，包含类型过滤
+            # 使用通配符支持部分匹配（如果查询是单个词且没有通配符）
+            processed_query = query.strip()
+            # 如果查询是单个词且不包含通配符，尝试在多个字段中使用通配符搜索
+            if " " not in processed_query and "*" not in processed_query and "?" not in processed_query:
+                # 构建多查询：正常搜索 + 多个字段通配符搜索
                 query_parser = MultifieldParser(
-                    ["content", "name", "description", "signature"],
+                    ["content", "name", "description", "signature", "full_name", "class_name"],
                     schema=self.schema
                 )
-                parsed_query = query_parser.parse(query)
-                # 添加类型过滤
-                type_query = Term("type", result_type)
-                final_query = And([parsed_query, type_query])
+                
+                # 正常查询
+                normal_query = query_parser.parse(query)
+                
+                # 在支持通配符的字段中使用通配符查询（full_name 和 class_name 是 TEXT 类型）
+                full_name_parser = QueryParser("full_name", schema=self.schema)
+                class_name_parser = QueryParser("class_name", schema=self.schema)
+                content_parser = QueryParser("content", schema=self.schema)
+                
+                # 多个通配符查询
+                wildcard_queries = [
+                    full_name_parser.parse(f"*{query}*"),
+                    class_name_parser.parse(f"*{query}*"),
+                    content_parser.parse(f"*{query}*")
+                ]
+                
+                # 组合所有查询（OR 关系）
+                all_queries = [normal_query] + wildcard_queries
+                
+                # 组合查询（OR 关系）
+                if result_type:
+                    type_query = Term("type", result_type)
+                    final_query = And([
+                        Or(all_queries),
+                        type_query
+                    ])
+                else:
+                    final_query = Or(all_queries)
             else:
-                # 普通多字段查询
-                query_parser = MultifieldParser(
-                    ["content", "name", "description", "signature"],
-                    schema=self.schema
-                )
-                final_query = query_parser.parse(query)
+                # 多词查询或已包含通配符，使用原始逻辑
+                if result_type:
+                    # 多字段查询，包含类型过滤
+                    query_parser = MultifieldParser(
+                        ["content", "name", "description", "signature"],
+                        schema=self.schema
+                    )
+                    parsed_query = query_parser.parse(query)
+                    # 添加类型过滤
+                    type_query = Term("type", result_type)
+                    final_query = And([parsed_query, type_query])
+                else:
+                    # 普通多字段查询
+                    query_parser = MultifieldParser(
+                        ["content", "name", "description", "signature"],
+                        schema=self.schema
+                    )
+                    final_query = query_parser.parse(query)
             
             # 执行搜索
             search_results = searcher.search(final_query, limit=limit)

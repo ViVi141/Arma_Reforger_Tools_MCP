@@ -19,7 +19,7 @@ if requirements_file.exists():
 
 setup(
     name="arma-reforger-api-mcp",
-    version="0.1.0",
+    version="0.2.0",
     description="MCP server for Arma Reforger API documentation",
     long_description=long_description,
     long_description_content_type="text/markdown",

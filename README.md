@@ -177,6 +177,7 @@ AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例
 - 🔧 [Cursor 集成指南](CURSOR_SETUP.md) - Cursor 集成步骤详解
 - 📖 [Wiki 集成说明](WIKI_INTEGRATION.md) - Wiki 页面集成和使用指南
 - 🧪 [测试文档](TESTING.md) - 测试说明和开发指南
+- 📝 [更新日志](CHANGELOG.md) - 版本更新记录
 - 🌐 [ModelScope 页面](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP) - 在 ModelScope 平台上查看和使用
 
 ## 🤝 贡献
