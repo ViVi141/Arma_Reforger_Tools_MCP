@@ -125,13 +125,13 @@ class HTMLParser:
             class_data["methods"] = self._extract_methods(methods_table, soup)
 
         # 提取属性（如果有）
-        # 查找属性相关的表格或部分
-        # 注意：Doxygen 可能将属性放在不同的表格中
-        attrs_section = soup.find("h2", string=re.compile(".*Attributes.*|.*Properties.*", re.I))
-        if attrs_section:
-            attrs_table = attrs_section.find_next("table", class_="memberdecls")
-            if attrs_table:
-                class_data["properties"] = self._extract_properties(attrs_table)
+        # Doxygen 的 h2 在 table 内部作为行标题，需用 find_parent 获取所在表格
+        for h2 in soup.find_all("h2", class_="groupheader"):
+            if re.search(r"Attributes|Properties", h2.get_text(), re.I):
+                attrs_table = h2.find_parent("table", class_="memberdecls")
+                if attrs_table:
+                    class_data["properties"] = self._extract_properties(attrs_table)
+                break
 
         # 提取示例代码
         examples_section = soup.find("div", class_="fragment")
@@ -143,8 +143,8 @@ class HTMLParser:
     def _extract_properties(self, table: Tag) -> List[Dict[str, Any]]:
         """从属性表中提取属性信息"""
         properties = []
-        
-        rows = table.find_all("tr", class_="memitem")
+        # Doxygen 使用 memitem:hash 格式，需用正则匹配
+        rows = table.find_all("tr", class_=re.compile(r"^memitem"))
         for row in rows:
             prop = self._parse_property_row(row)
             if prop:
@@ -164,18 +164,18 @@ class HTMLParser:
         mem_item_right = row.find("td", class_="memItemRight")
         
         if mem_item_left and mem_item_right:
-            # 属性类型
-            type_elem = mem_item_left.find(text=True, recursive=False)
-            if type_elem:
-                property_data["type"] = clean_text(str(type_elem))
+            # 属性类型（需用 get_text 以支持带链接的类型，如 <a>BaseUserAction</a>）
+            type_text = mem_item_left.get_text()
+            if type_text:
+                property_data["type"] = clean_text(type_text)
             
             # 属性名
             prop_link = mem_item_right.find("a", class_="el")
             if prop_link:
                 property_data["name"] = clean_text(prop_link.get_text())
 
-        # 提取描述
-        mem_desc = row.find_next_sibling("tr", class_="memdesc")
+        # 提取描述（Doxygen 使用 memdesc:hash 格式）
+        mem_desc = row.find_next_sibling("tr", class_=re.compile(r"^memdesc"))
         if mem_desc:
             desc_elem = mem_desc.find("td", class_="mdescRight")
             if desc_elem:
@@ -345,8 +345,8 @@ class HTMLParser:
     def _extract_methods(self, table: Tag, soup: BeautifulSoup) -> List[Dict[str, Any]]:
         """从方法表中提取方法信息"""
         methods = []
-        
-        rows = table.find_all("tr", class_="memitem")
+        # Doxygen 使用 memitem:hash 格式，需用正则匹配
+        rows = table.find_all("tr", class_=re.compile(r"^memitem"))
         for row in rows:
             method = self._parse_method_row(row, soup)
             if method:
@@ -388,8 +388,8 @@ class HTMLParser:
                     method["parameters"]
                 )
 
-        # 提取描述
-        mem_desc = row.find_next_sibling("tr", class_="memdesc")
+        # 提取描述（Doxygen 使用 memdesc:hash 格式）
+        mem_desc = row.find_next_sibling("tr", class_=re.compile(r"^memdesc"))
         if mem_desc:
             desc_elem = mem_desc.find("td", class_="mdescRight")
             if desc_elem:

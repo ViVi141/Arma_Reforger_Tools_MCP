@@ -53,13 +53,22 @@
    # 构建 API 索引
    python -m src.parser.build_index
    
+   # 推荐：最快模式（自动检测 CPU/线程，Windows 下自动顺序构建以避免卡死）
+   python -m src.parser.build_index --api-source both --fast
+   
+   # 构建两个 API 来源（自动检测）
+   python -m src.parser.build_index --api-source both
+   
+   # 手动指定：--workers 解析线程/进程数，--index-procs Whoosh 索引进程数
+   python -m src.parser.build_index --api-source both --workers 8 --index-procs 4
+   
    # 构建 Wiki 索引（如果 wiki_pages 目录存在）
    python -m src.parser.build_index --wiki-only
    
    # 或者同时构建 API 和 Wiki 索引
    python -m src.parser.build_index --api-source arma_reforger --include-wiki
    ```
-   > 这个过程可能需要几分钟时间
+   > 这个过程可能需要几分钟时间。使用 `--fast` 可自动应用最优设置；Windows 下 `api-source=both` 时自动使用顺序构建以避免卡死。
 
 4. **配置 Cursor**
 

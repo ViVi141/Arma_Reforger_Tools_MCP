@@ -5,6 +5,23 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.1] - 2026-02-16
+
+### 新增
+- `--fast` 选项：自动检测 CPU/线程并应用最优索引设置
+- `--sequential` 选项：`api-source=both` 时顺序构建，避免 Windows 下卡死
+- Windows 下解析使用 ProcessPoolExecutor，单文件超时 30 秒，避免卡死
+
+### 改进
+- 索引构建：Windows 下自动使用顺序构建（`--fast --api-source both`）
+- 解析：使用 `as_completed` 替代 `map`，不按顺序等待结果
+- 解析：Windows 下并行数限制为 8，避免资源竞争
+- 属性解析：修复 `properties.type` 在类型含链接时解析为空的问题
+
+### 修复
+- 修复 Windows 下 `api-source=both` 并行构建时卡死问题
+- 修复 Doxygen `memitem:hash` 格式导致方法/属性无法解析为空的问题
+
 ## [0.2.0] - 2025-01-21
 
 ### 新增

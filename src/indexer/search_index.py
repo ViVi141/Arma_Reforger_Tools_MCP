@@ -50,27 +50,42 @@ class SearchIndex:
         
         self._index = None
 
-    def build_index(self, api_data: Dict[str, Any], overwrite: bool = False) -> None:
+    def build_index(
+        self,
+        api_data: Dict[str, Any],
+        overwrite: bool = False,
+        procs: int = 0,
+        multisegment: bool = True,
+    ) -> None:
         """
         构建搜索索引
-        
+
         Args:
             api_data: API 数据字典
             overwrite: 如果为 True，则覆盖现有索引；如果为 False，则追加到现有索引
+            procs: Whoosh 并行索引进程数，0 表示单进程
+            multisegment: 是否使用多段索引（批量构建时更快）
         """
         # 如果需要覆盖，删除现有索引目录
         if overwrite and index.exists_in(str(self.index_dir)):
             import shutil
             shutil.rmtree(str(self.index_dir))
             self.index_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 创建或打开索引
         if index.exists_in(str(self.index_dir)):
             self._index = index.open_dir(str(self.index_dir))
         else:
             self._index = index.create_in(str(self.index_dir), self.schema)
-        
-        writer = self._index.writer()
+
+        writer_kwargs = {}
+        if procs > 0:
+            writer_kwargs["procs"] = procs
+            writer_kwargs["multisegment"] = True  # 并行时启用多段以加速
+            writer_kwargs["limitmb"] = 256  # 每进程内存，提升大批量索引速度
+        elif multisegment:
+            writer_kwargs["multisegment"] = True
+        writer = self._index.writer(**writer_kwargs)
         
         try:
             # 检查是否是 Wiki 数据
@@ -325,17 +340,23 @@ class SearchIndex:
         
         return results
 
-    def load_from_json(self, json_file: str, overwrite: bool = True) -> None:
+    def load_from_json(
+        self,
+        json_file: str,
+        overwrite: bool = True,
+        procs: int = 0,
+    ) -> None:
         """
         从 JSON 文件加载数据并构建索引
-        
+
         Args:
             json_file: JSON 文件名
             overwrite: 如果为 True，则覆盖现有索引；如果为 False，则追加到现有索引
+            procs: Whoosh 并行索引进程数，0 表示单进程
         """
         api_data = load_json(json_file)
         if api_data:
-            self.build_index(api_data, overwrite=overwrite)
+            self.build_index(api_data, overwrite=overwrite, procs=procs)
         else:
             raise FileNotFoundError(f"无法加载 JSON 文件: {json_file}")
 

@@ -54,11 +54,20 @@ pip install -e .
 # 构建 Arma Reforger API 索引
 python -m src.parser.build_index --api-source arma_reforger
 
+# 推荐：最快模式（自动检测 CPU/线程，Windows 下自动顺序构建）
+python -m src.parser.build_index --api-source both --fast
+
 # 或者同时构建两个 API 的索引
 python -m src.parser.build_index --api-source both
 ```
 
-这个过程可能需要几分钟，取决于文档数量。
+**构建选项说明**：
+- `--fast`：自动检测 CPU 核心数和线程数，应用最优设置
+- `--sequential`：`api-source=both` 时顺序构建（避免 Windows 下并行卡死）
+- `--workers N`：指定解析线程/进程数（默认自动检测）
+- `--index-procs N`：指定 Whoosh 索引进程数（0 表示自动检测）
+
+**注意**：Windows 下使用 `--fast --api-source both` 时会自动顺序构建以避免卡死；解析使用进程池（单文件超时 30 秒），过程约需数分钟。
 
 ### 3. 配置 Cursor
 
@@ -214,16 +223,29 @@ python -m src.mcp_server.server
 2. 尝试使用更通用的搜索词
 3. 检查索引目录是否存在
 
+### 问题：构建索引时卡死或长时间无响应
+
+**解决方案**（Windows 用户）:
+1. 使用 `--fast` 或 `--sequential`：`python -m src.parser.build_index --api-source both --fast`
+2. 或显式指定顺序构建：`python -m src.parser.build_index --api-source both --sequential`
+3. 减少并行数：`python -m src.parser.build_index --api-source both --workers 4`
+
 ## 更新索引
 
 当 API 文档更新时，需要重新构建索引：
 
 ```bash
+# 推荐：最快模式（自动检测，Windows 下顺序构建）
+python -m src.parser.build_index --api-source both --fast
+
 # 重新构建所有索引
 python -m src.parser.build_index --api-source both
 
 # 只重新构建搜索索引（如果 JSON 数据已存在）
 python -m src.parser.build_index --skip-parse --api-source both
+
+# 手动指定：解析线程数、Whoosh 进程数
+python -m src.parser.build_index --api-source both --workers 8 --index-procs 4
 ```
 
 ## 性能优化
