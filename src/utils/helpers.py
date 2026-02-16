@@ -6,13 +6,29 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 
+def get_project_root() -> Path:
+    """获取项目根目录（健壮的实现）"""
+    # 方法1: 通过环境变量
+    if "PROJECT_ROOT" in os.environ:
+        return Path(os.environ["PROJECT_ROOT"])
+
+    # 方法2: 通过当前文件位置向上查找项目标识文件
+    current_file = Path(__file__)
+    for parent in current_file.parents:
+        if (parent / "setup.py").exists() or (parent / "pyproject.toml").exists():
+            return parent
+
+    # 方法3: 默认使用相对路径（向上3级目录）
+    return current_file.parent.parent.parent
+
+
 def get_data_path() -> Path:
     """获取数据目录路径"""
     data_path = os.environ.get("API_DATA_PATH")
     if data_path:
         return Path(data_path)
     # 默认使用项目根目录下的 data 文件夹
-    return Path(__file__).parent.parent.parent / "data"
+    return get_project_root() / "data"
 
 
 def ensure_data_dir() -> Path:
@@ -49,7 +65,7 @@ def clean_text(text: str) -> str:
 
 def get_docs_path(api_source: str = "arma_reforger") -> Path:
     """获取文档路径"""
-    base_path = Path(__file__).parent.parent.parent
+    base_path = get_project_root()
     if api_source == "arma_reforger":
         return base_path / "ArmaReforgerScriptAPIPublic"
     elif api_source == "enfusion":
@@ -60,5 +76,5 @@ def get_docs_path(api_source: str = "arma_reforger") -> Path:
 
 def get_wiki_pages_path() -> Path:
     """获取 Wiki 页面目录路径"""
-    base_path = Path(__file__).parent.parent.parent
+    base_path = get_project_root()
     return base_path / "wiki_pages"

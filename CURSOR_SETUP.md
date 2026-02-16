@@ -46,20 +46,26 @@ python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.v
 
 ## 配置文件示例
 
+**推荐：使用自动生成脚本**（在项目根目录运行）：
+```bash
+python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
+```
+
+**手动配置示例**：
 ```json
 {
   "mcpServers": {
     "arma-reforger-api": {
-      "command": "C:\\Users\\74738\\Desktop\\Arma_Reforger_Tools_MCP\\.venv\\Scripts\\python.exe",
+      "command": "python",
       "args": [
         "-m",
         "src.mcp_server.server"
       ],
-      "cwd": "C:\\Users\\74738\\Desktop\\Arma_Reforger_Tools_MCP",
+      "cwd": "你的项目路径",
       "env": {
-        "API_DATA_PATH": "C:\\Users\\74738\\Desktop\\Arma_Reforger_Tools_MCP\\data",
+        "API_DATA_PATH": "你的项目路径/data",
         "LOG_LEVEL": "INFO",
-        "PYTHONPATH": "C:\\Users\\74738\\Desktop\\Arma_Reforger_Tools_MCP"
+        "PYTHONPATH": "你的项目路径"
       }
     }
   }

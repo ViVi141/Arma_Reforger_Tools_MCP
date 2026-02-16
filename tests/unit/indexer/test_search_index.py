@@ -72,15 +72,35 @@ class TestSearchIndex:
             try:
                 yield index
             finally:
-                # 关闭索引以释放文件句柄（Windows 需要）
+                # 优先使用公开的 close()，并作为回退采取更强力的清理以确保 Windows 释放文件句柄
+                if hasattr(index, "close"):
+                    try:
+                        index.close()
+                    except Exception:
+                        pass
+
                 if hasattr(index, '_index') and index._index:
                     try:
                         index._index.close()
-                    except:
+                    except Exception:
                         pass
-                # 等待文件释放
+                    try:
+                        storage = getattr(index._index, 'storage', None)
+                        if storage and hasattr(storage, 'close'):
+                            storage.close()
+                    except Exception:
+                        pass
+
+                # 删除引用并强制回收，增加短暂停顿以确保文件句柄释放
+                try:
+                    import gc
+                    del index
+                    gc.collect()
+                except Exception:
+                    pass
+
                 import time
-                time.sleep(0.1)
+                time.sleep(0.2)
     
     def test_init(self, search_index):
         """测试初始化"""

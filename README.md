@@ -64,6 +64,18 @@
 
    在 Cursor 的 MCP 配置文件中添加（配置文件位置：`%APPDATA%\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`）：
 
+   **自动生成配置**（推荐）：
+   ```bash
+   # 方法1: 使用专用脚本（推荐）
+   python generate_config.py
+   
+   # 方法2: 使用单行命令
+   python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
+   ```
+
+   > **虚拟环境说明**：如果您使用虚拟环境，`generate_config.py` 脚本会自动检测并使用虚拟环境中的 Python 解释器。如果没有检测到虚拟环境，将使用系统 Python。
+
+   **手动配置**：
    ```json
    {
      "mcpServers": {
@@ -72,7 +84,9 @@
          "args": ["-m", "src.mcp_server.server"],
          "cwd": "你的项目路径",
          "env": {
-           "API_DATA_PATH": "你的项目路径/data"
+           "API_DATA_PATH": "你的项目路径/data",
+           "LOG_LEVEL": "INFO",
+           "PYTHONPATH": "你的项目路径"
          }
        }
      }

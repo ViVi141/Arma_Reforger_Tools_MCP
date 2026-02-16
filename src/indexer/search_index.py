@@ -338,3 +338,41 @@ class SearchIndex:
             self.build_index(api_data, overwrite=overwrite)
         else:
             raise FileNotFoundError(f"无法加载 JSON 文件: {json_file}")
+
+    def close(self) -> None:
+        """关闭底层 Whoosh 索引/存储并释放文件句柄（在 Windows 上必须）。"""
+        try:
+            if self._index:
+                try:
+                    # 关闭 Index（会关闭相关资源）
+                    self._index.close()
+                except Exception:
+                    pass
+                # 有些 Whoosh Storage 仍然持有文件句柄，尝试调用 storage.close()
+                try:
+                    storage = getattr(self._index, "storage", None)
+                    if storage and hasattr(storage, "close"):
+                        storage.close()
+                except Exception:
+                    pass
+        finally:
+            # 删除引用并触发垃圾回收以尽快释放 Windows 文件句柄
+            try:
+                self._index = None
+                import gc
+                gc.collect()
+            except Exception:
+                pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
+    def __del__(self):
+        # 最后的兜底清理
+        try:
+            self.close()
+        except Exception:
+            pass
