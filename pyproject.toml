@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arma-reforger-api-mcp"
+version = "0.2.0"
+description = "MCP server for Arma Reforger API documentation"
+readme = "README.md"
+license = {text = "AGPL-3.0-or-later"}
+requires-python = ">=3.8"
+authors = [
+    {name = "ViVi141", email = "747384120@qq.com"}
+]
+keywords = ["arma", "reforger", "mcp", "api", "documentation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "whoosh>=2.7.4",
+    "jsonschema>=4.20.0",
+    "typing-extensions>=4.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.1",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ViVi141/Arma_Reforger_Tools_MCP"
+Repository = "https://github.com/ViVi141/Arma_Reforger_Tools_MCP"
+Documentation = "https://github.com/ViVi141/Arma_Reforger_Tools_MCP#readme"
+
+[project.scripts]
+arma-reforger-mcp = "src.mcp_server.server:main_sync"
+arma-reforger-mcp-config = "scripts.generate_config:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "scripts*"]

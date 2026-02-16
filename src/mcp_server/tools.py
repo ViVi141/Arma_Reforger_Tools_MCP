@@ -1,20 +1,167 @@
 """MCP 工具实现"""
 
+import atexit
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from mcp.types import Tool
 
 from src.indexer.search_index import SearchIndex
 from src.indexer.relationship_index import RelationshipIndex
-from src.utils.helpers import load_json, get_data_path
+from src.mcp_server.errors import APINotFoundError, InvalidParameterError
+from src.utils.helpers import get_cached_api_data
 
 logger = logging.getLogger(__name__)
+
+
+def _json_response(data: Dict[str, Any]) -> str:
+    """统一 JSON 响应格式"""
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+def _resolve_api_sources(api_source: str) -> List[str]:
+    """解析 API 来源为列表（仅 arma_reforger、enfusion）"""
+    if api_source == "both":
+        return ["arma_reforger", "enfusion"]
+    return [api_source]
+
+
+def _resolve_search_sources(api_source: str) -> List[str]:
+    """解析搜索来源为列表（含 Wiki）"""
+    if api_source == "all":
+        return ["arma_reforger", "enfusion", "arma_reforger_wiki"]
+    if api_source == "both":
+        return ["arma_reforger", "enfusion"]
+    return [api_source]
+
+
+def _find_class_in_sources(
+    class_name: str,
+    sources: List[str],
+    include_examples: bool,
+) -> Dict[str, Any]:
+    """
+    在多个来源中查找类，返回包含 class 键的字典。
+    未找到时抛出 APINotFoundError。
+    """
+    for source in sources:
+        api_data = get_cached_api_data(source)
+        if not api_data:
+            continue
+        classes = api_data.get("classes", {})
+        if class_name in classes:
+            class_data = classes[class_name].copy()
+            if not include_examples:
+                class_data.pop("examples", None)
+            return {"class": class_data}
+        for name, data in classes.items():
+            if class_name.lower() in name.lower():
+                class_data = data.copy()
+                if not include_examples:
+                    class_data.pop("examples", None)
+                return {"class": class_data}
+    raise APINotFoundError(class_name, "类")
+
+
+def _collect_code_examples(
+    api_name: str,
+    sources: List[str],
+    language: str,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    从多个来源收集代码示例。
+    返回 (examples, matched_classes, matched_methods)。
+    """
+    examples = []
+    matched_classes = []
+    matched_methods = []
+
+    for source in sources:
+        api_data = get_cached_api_data(source)
+        if not api_data:
+            continue
+        classes = api_data.get("classes", {})
+
+        # 精确匹配类名
+        if api_name in classes:
+            class_data = classes[api_name]
+            matched_classes.append({"name": api_name, "api_source": source, "type": "class"})
+            for example in class_data.get("examples", []):
+                if language == "all" or example.get("language") == language:
+                    ex = example.copy()
+                    ex["context"] = {"type": "class", "class_name": api_name, "api_source": source}
+                    examples.append(ex)
+
+        # 部分匹配类名
+        for cls_name, class_data in classes.items():
+            if api_name.lower() in cls_name.lower() and cls_name != api_name:
+                matched_classes.append({"name": cls_name, "api_source": source, "type": "class"})
+                for example in class_data.get("examples", []):
+                    if language == "all" or example.get("language") == language:
+                        ex = example.copy()
+                        ex["context"] = {"type": "class", "class_name": cls_name, "api_source": source}
+                        examples.append(ex)
+
+        # 查找方法中的示例
+        for cls_name, class_data in classes.items():
+            for method in class_data.get("methods", []):
+                method_name = method.get("name", "")
+                if method_name == api_name:
+                    matched_methods.append({
+                        "name": method_name,
+                        "class_name": cls_name,
+                        "api_source": source,
+                        "type": "method",
+                    })
+                    for example in method.get("examples", []):
+                        if language == "all" or example.get("language") == language:
+                            ex = example.copy()
+                            ex["context"] = {
+                                "type": "method",
+                                "method_name": method_name,
+                                "class_name": cls_name,
+                                "api_source": source,
+                            }
+                            examples.append(ex)
+                elif api_name.lower() in method_name.lower():
+                    matched_methods.append({
+                        "name": method_name,
+                        "class_name": cls_name,
+                        "api_source": source,
+                        "type": "method",
+                    })
+                    for example in method.get("examples", []):
+                        if language == "all" or example.get("language") == language:
+                            ex = example.copy()
+                            ex["context"] = {
+                                "type": "method",
+                                "method_name": method_name,
+                                "class_name": cls_name,
+                                "api_source": source,
+                            }
+                            examples.append(ex)
+
+    return examples, matched_classes, matched_methods
+
 
 # 全局索引实例（延迟加载）
 _search_indices: Dict[str, SearchIndex] = {}
 _relationship_indices: Dict[str, RelationshipIndex] = {}
+
+
+def _close_all_indices() -> None:
+    """进程退出时关闭所有搜索索引，释放文件句柄"""
+    global _search_indices
+    for index in _search_indices.values():
+        try:
+            index.close()
+        except Exception as e:
+            logger.debug("关闭索引时出错: %s", e)
+    _search_indices.clear()
+
+
+atexit.register(_close_all_indices)
 
 
 def get_search_index(api_source: str) -> Optional[SearchIndex]:
@@ -200,23 +347,11 @@ async def handle_search_api(arguments: Dict[str, Any]) -> str:
     limit = arguments.get("limit", 10)
     
     if not query:
-        return json.dumps({
-            "error": {
-                "code": "INVALID_PARAMETER",
-                "message": "查询参数不能为空"
-            }
-        }, ensure_ascii=False, indent=2)
+        raise InvalidParameterError("query", "查询参数不能为空")
     
     results = []
-    
-    # 处理多个 API 来源
-    if api_source == "all":
-        sources = ["arma_reforger", "enfusion", "arma_reforger_wiki"]
-    elif api_source == "both":
-        sources = ["arma_reforger", "enfusion"]
-    else:
-        sources = [api_source]
-    
+    sources = _resolve_search_sources(api_source)
+
     for source in sources:
         search_index = get_search_index(source)
         if search_index:
@@ -243,10 +378,9 @@ async def handle_search_api(arguments: Dict[str, Any]) -> str:
     response = {
         "results": results,
         "total": len(results),
-        "query": query
+        "query": query,
     }
-    
-    return json.dumps(response, ensure_ascii=False, indent=2)
+    return _json_response(response)
 
 
 async def handle_get_class_info(arguments: Dict[str, Any]) -> str:
@@ -254,46 +388,12 @@ async def handle_get_class_info(arguments: Dict[str, Any]) -> str:
     class_name = arguments.get("class_name", "")
     api_source = arguments.get("api_source", "both")
     include_examples = arguments.get("include_examples", True)
-    
+
     if not class_name:
-        return json.dumps({
-            "error": {
-                "code": "INVALID_PARAMETER",
-                "message": "类名不能为空"
-            }
-        }, ensure_ascii=False, indent=2)
-    
-    # 处理多个 API 来源
-    sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
-    
-    for source in sources:
-        api_data = load_json(f"{source}_api.json")
-        if not api_data:
-            continue
-        
-        classes = api_data.get("classes", {})
-        
-        # 精确匹配
-        if class_name in classes:
-            class_data = classes[class_name].copy()
-            if not include_examples:
-                class_data.pop("examples", None)
-            return json.dumps({"class": class_data}, ensure_ascii=False, indent=2)
-        
-        # 部分匹配
-        for name, data in classes.items():
-            if class_name.lower() in name.lower():
-                class_data = data.copy()
-                if not include_examples:
-                    class_data.pop("examples", None)
-                return json.dumps({"class": class_data}, ensure_ascii=False, indent=2)
-    
-    return json.dumps({
-        "error": {
-            "code": "API_NOT_FOUND",
-            "message": f"未找到类: {class_name}"
-        }
-    }, ensure_ascii=False, indent=2)
+        raise InvalidParameterError("class_name", "类名不能为空")
+
+    result = _find_class_in_sources(class_name, _resolve_api_sources(api_source), include_examples)
+    return _json_response(result)
 
 
 async def handle_get_function_info(arguments: Dict[str, Any]) -> str:
@@ -303,18 +403,12 @@ async def handle_get_function_info(arguments: Dict[str, Any]) -> str:
     api_source = arguments.get("api_source", "both")
     
     if not function_name:
-        return json.dumps({
-            "error": {
-                "code": "INVALID_PARAMETER",
-                "message": "方法名不能为空"
-            }
-        }, ensure_ascii=False, indent=2)
-    
-    # 处理多个 API 来源
-    sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
+        raise InvalidParameterError("function_name", "方法名不能为空")
+
+    sources = _resolve_api_sources(api_source)
     
     for source in sources:
-        api_data = load_json(f"{source}_api.json")
+        api_data = get_cached_api_data(source)
         if not api_data:
             continue
         
@@ -326,7 +420,7 @@ async def handle_get_function_info(arguments: Dict[str, Any]) -> str:
                 class_data = classes[class_name]
                 for method in class_data.get("methods", []):
                     if method.get("name") == function_name:
-                        return json.dumps({"function": method}, ensure_ascii=False, indent=2)
+                        return _json_response({"function": method})
         else:
             # 在所有类中查找
             for cls_name, class_data in classes.items():
@@ -334,14 +428,9 @@ async def handle_get_function_info(arguments: Dict[str, Any]) -> str:
                     if method.get("name") == function_name:
                         method_with_class = method.copy()
                         method_with_class["class_name"] = cls_name
-                        return json.dumps({"function": method_with_class}, ensure_ascii=False, indent=2)
+                        return _json_response({"function": method_with_class})
     
-    return json.dumps({
-        "error": {
-            "code": "API_NOT_FOUND",
-            "message": f"未找到方法: {function_name}"
-        }
-    }, ensure_ascii=False, indent=2)
+    raise APINotFoundError(function_name, "方法")
 
 
 async def handle_find_related_apis(arguments: Dict[str, Any]) -> str:
@@ -351,16 +440,9 @@ async def handle_find_related_apis(arguments: Dict[str, Any]) -> str:
     relation_type = arguments.get("relation_type", "all")
     
     if not api_name:
-        return json.dumps({
-            "error": {
-                "code": "INVALID_PARAMETER",
-                "message": "API 名称不能为空"
-            }
-        }, ensure_ascii=False, indent=2)
-    
-    # 处理多个 API 来源
-    sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
-    
+        raise InvalidParameterError("api_name", "API 名称不能为空")
+
+    sources = _resolve_api_sources(api_source)
     all_related = []
     
     for source in sources:
@@ -374,10 +456,9 @@ async def handle_find_related_apis(arguments: Dict[str, Any]) -> str:
     response = {
         "api_name": api_name,
         "related_apis": all_related,
-        "total": len(all_related)
+        "total": len(all_related),
     }
-    
-    return json.dumps(response, ensure_ascii=False, indent=2)
+    return _json_response(response)
 
 
 async def handle_get_code_examples(arguments: Dict[str, Any]) -> str:
@@ -394,117 +475,16 @@ async def handle_get_code_examples(arguments: Dict[str, Any]) -> str:
     language = arguments.get("language", "enforce")
     
     if not api_name:
-        return json.dumps({
-            "error": {
-                "code": "INVALID_PARAMETER",
-                "message": "API 名称不能为空"
-            }
-        }, ensure_ascii=False, indent=2)
-    
-    # 处理多个 API 来源
-    sources = ["arma_reforger", "enfusion"] if api_source == "both" else [api_source]
-    
-    examples = []
-    matched_classes = []
-    matched_methods = []
-    
-    for source in sources:
-        api_data = load_json(f"{source}_api.json")
-        if not api_data:
-            continue
-        
-        classes = api_data.get("classes", {})
-        
-        # 精确匹配类名
-        if api_name in classes:
-            class_data = classes[api_name]
-            matched_classes.append({
-                "name": api_name,
-                "api_source": source,
-                "type": "class"
-            })
-            # 提取类级别的示例
-            for example in class_data.get("examples", []):
-                if language == "all" or example.get("language") == language:
-                    example_with_context = example.copy()
-                    example_with_context["context"] = {
-                        "type": "class",
-                        "class_name": api_name,
-                        "api_source": source
-                    }
-                    examples.append(example_with_context)
-        
-        # 部分匹配类名
-        for cls_name, class_data in classes.items():
-            if api_name.lower() in cls_name.lower() and cls_name != api_name:
-                matched_classes.append({
-                    "name": cls_name,
-                    "api_source": source,
-                    "type": "class"
-                })
-                # 提取类级别的示例
-                for example in class_data.get("examples", []):
-                    if language == "all" or example.get("language") == language:
-                        example_with_context = example.copy()
-                        example_with_context["context"] = {
-                            "type": "class",
-                            "class_name": cls_name,
-                            "api_source": source
-                        }
-                        examples.append(example_with_context)
-        
-        # 查找方法中的示例
-        for cls_name, class_data in classes.items():
-            for method in class_data.get("methods", []):
-                method_name = method.get("name", "")
-                
-                # 精确匹配方法名
-                if method_name == api_name:
-                    matched_methods.append({
-                        "name": method_name,
-                        "class_name": cls_name,
-                        "api_source": source,
-                        "type": "method"
-                    })
-                    # 提取方法级别的示例
-                    for example in method.get("examples", []):
-                        if language == "all" or example.get("language") == language:
-                            example_with_context = example.copy()
-                            example_with_context["context"] = {
-                                "type": "method",
-                                "method_name": method_name,
-                                "class_name": cls_name,
-                                "api_source": source
-                            }
-                            examples.append(example_with_context)
-                
-                # 部分匹配方法名
-                elif api_name.lower() in method_name.lower():
-                    matched_methods.append({
-                        "name": method_name,
-                        "class_name": cls_name,
-                        "api_source": source,
-                        "type": "method"
-                    })
-                    # 提取方法级别的示例
-                    for example in method.get("examples", []):
-                        if language == "all" or example.get("language") == language:
-                            example_with_context = example.copy()
-                            example_with_context["context"] = {
-                                "type": "method",
-                                "method_name": method_name,
-                                "class_name": cls_name,
-                                "api_source": source
-                            }
-                            examples.append(example_with_context)
-    
-    # 构建响应
+        raise InvalidParameterError("api_name", "API 名称不能为空")
+
+    sources = _resolve_api_sources(api_source)
+    examples, matched_classes, matched_methods = _collect_code_examples(api_name, sources, language)
+
     response = {
         "api_name": api_name,
         "examples": examples,
         "total": len(examples),
-        "matched_classes": matched_classes[:10],  # 限制返回数量
-        "matched_methods": matched_methods[:10]
+        "matched_classes": matched_classes[:10],
+        "matched_methods": matched_methods[:10],
     }
-    
-    return json.dumps(response, ensure_ascii=False, indent=2)
+    return _json_response(response)

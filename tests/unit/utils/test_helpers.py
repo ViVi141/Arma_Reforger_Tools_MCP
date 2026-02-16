@@ -8,12 +8,14 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 
 from src.utils.helpers import (
+    get_cached_api_data,
     get_data_path,
     ensure_data_dir,
-    save_json,
+    invalidate_api_cache,
     load_json,
+    save_json,
     clean_text,
-    get_docs_path
+    get_docs_path,
 )
 
 
@@ -148,3 +150,63 @@ class TestGetDocsPath:
         """测试获取无效路径"""
         with pytest.raises(ValueError):
             get_docs_path("invalid_source")
+
+
+class TestGetCachedApiData:
+    """测试 get_cached_api_data 函数"""
+
+    def setup_method(self):
+        """每个测试前清除缓存"""
+        invalidate_api_cache()
+
+    def test_caches_arma_reforger_data(self):
+        """测试缓存 arma_reforger 数据"""
+        api_data = {"classes": {"TestClass": {}}, "api_source": "arma_reforger"}
+        with patch("src.utils.helpers.load_json", return_value=api_data) as mock_load:
+            result1 = get_cached_api_data("arma_reforger")
+            result2 = get_cached_api_data("arma_reforger")
+            assert result1 == api_data
+            assert result2 == api_data
+            assert result1 is result2
+            mock_load.assert_called_once()
+
+    def test_caches_enfusion_data(self):
+        """测试缓存 enfusion 数据"""
+        api_data = {"classes": {}, "api_source": "enfusion"}
+        with patch("src.utils.helpers.load_json", return_value=api_data):
+            result = get_cached_api_data("enfusion")
+            assert result == api_data
+
+    def test_returns_none_for_missing_file(self):
+        """测试文件不存在时返回 None"""
+        with patch("src.utils.helpers.load_json", return_value=None):
+            result = get_cached_api_data("arma_reforger")
+            assert result is None
+
+
+class TestInvalidateApiCache:
+    """测试 invalidate_api_cache 函数"""
+
+    def setup_method(self):
+        invalidate_api_cache()
+
+    def test_invalidate_all_clears_cache(self):
+        """测试清除全部缓存"""
+        api_data = {"classes": {}}
+        with patch("src.utils.helpers.load_json", return_value=api_data):
+            get_cached_api_data("arma_reforger")
+        invalidate_api_cache()
+        with patch("src.utils.helpers.load_json", return_value=api_data) as mock_load:
+            get_cached_api_data("arma_reforger")
+            mock_load.assert_called_once()
+
+    def test_invalidate_single_source(self):
+        """测试清除单个来源缓存"""
+        api_data = {"classes": {}}
+        with patch("src.utils.helpers.load_json", return_value=api_data):
+            get_cached_api_data("arma_reforger")
+            get_cached_api_data("enfusion")
+        invalidate_api_cache("arma_reforger")
+        with patch("src.utils.helpers.load_json", return_value=api_data) as mock_load:
+            get_cached_api_data("arma_reforger")
+            mock_load.assert_called_once()

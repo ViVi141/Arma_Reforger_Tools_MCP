@@ -40,6 +40,12 @@
 pip install -r requirements.txt
 ```
 
+或使用 pyproject.toml（推荐）：
+
+```bash
+pip install -e .
+```
+
 ### 2. 解析文档并构建索引
 
 首先需要解析 HTML 文档并构建索引（需要先完成步骤 0）：
@@ -56,34 +62,43 @@ python -m src.parser.build_index --api-source both
 
 ### 3. 配置 Cursor
 
-#### 方法 1：手动配置（推荐）
+#### 方法 1：使用配置生成脚本（推荐）
+
+在项目根目录运行：
+
+```bash
+python scripts/generate_config.py
+```
+
+或安装后使用命令：
+
+```bash
+arma-reforger-mcp-config
+```
+
+复制输出的 JSON 配置到 Cursor 的 MCP 配置文件。
+
+#### 方法 2：Windows PowerShell 自动配置
+
+```powershell
+.\scripts\setup_cursor.ps1
+```
+
+#### 方法 3：手动配置
 
 1. **找到配置文件路径**：
    ```
    %APPDATA%\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json
    ```
-   或者：
-   ```
-   C:\Users\[用户名]\AppData\Roaming\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json
-   ```
 
 2. **创建或编辑配置文件**，添加以下配置（**请将路径替换为你的实际项目路径**）：
 
-   **推荐：使用自动生成脚本**（在项目根目录运行）：
-   ```bash
-   python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
-   ```
-
-   **手动配置示例**：
    ```json
    {
      "mcpServers": {
        "arma-reforger-api": {
          "command": "python",
-         "args": [
-           "-m",
-           "src.mcp_server.server"
-         ],
+         "args": ["-m", "src.mcp_server.server"],
          "cwd": "你的项目路径",
          "env": {
            "API_DATA_PATH": "你的项目路径/data",
@@ -97,21 +112,9 @@ python -m src.parser.build_index --api-source both
 
    **重要说明**：
    - 如果使用虚拟环境，`command` 应该是 `.venv\Scripts\python.exe` 的完整路径
-   - 如果不使用虚拟环境，`command` 可以是 `python` 或 `python3`
    - `cwd` 必须是项目根目录的完整路径
-   - 路径中的反斜杠需要转义（`\\`）
 
 3. **保存配置文件**
-
-#### 方法 2：使用 Python 生成配置
-
-运行以下命令生成配置（会自动检测项目路径和虚拟环境）：
-
-```bash
-python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
-```
-
-然后将输出复制到配置文件中。
 
 ### 4. 重启 Cursor
 

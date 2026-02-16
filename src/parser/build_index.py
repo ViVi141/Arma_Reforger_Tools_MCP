@@ -1,13 +1,22 @@
 """构建 API 索引的主脚本"""
 
+import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.parser.html_parser import HTMLParser
 from src.parser.wiki_parser import WikiParser
 from src.indexer.search_index import SearchIndex
 from src.indexer.relationship_index import RelationshipIndex
 from src.utils.helpers import save_json, get_docs_path, get_wiki_pages_path, ensure_data_dir
+
+
+def _parse_single_file(args: Tuple[Path, str]) -> Optional[Dict[str, Any]]:
+    """工作线程：解析单个 HTML 文件。每个线程使用独立的 parser 实例。"""
+    file_path, api_source = args
+    parser = HTMLParser(api_source)
+    return parser.parse_file(file_path)
 
 
 def find_interface_files(docs_path: Path) -> List[Path]:
@@ -40,32 +49,33 @@ def build_api_index(api_source: str = "arma_reforger") -> Dict[str, Any]:
         print(f"错误: 文档路径不存在: {docs_path}")
         return {}
     
-    parser = HTMLParser(api_source)
     interface_files = find_interface_files(docs_path)
-    
+
     print(f"找到 {len(interface_files)} 个接口文件")
-    
+
     api_data = {
         "api_source": api_source,
         "classes": {},
         "total_classes": 0,
         "total_methods": 0,
-        "total_properties": 0
+        "total_properties": 0,
     }
-    
-    processed = 0
-    for interface_file in interface_files:
-        processed += 1
-        if processed % 100 == 0:
-            print(f"已处理 {processed}/{len(interface_files)} 个文件...")
-        
-        class_data = parser.parse_file(interface_file)
+
+    max_workers = min(32, (os.cpu_count() or 1) + 4)
+    tasks = [(f, api_source) for f in interface_files]
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(_parse_single_file, tasks))
+
+    for i, class_data in enumerate(results):
+        if i > 0 and i % 100 == 0:
+            print(f"已处理 {i}/{len(interface_files)} 个文件...")
         if class_data and class_data.get("name"):
             class_name = class_data["name"]
             api_data["classes"][class_name] = class_data
             api_data["total_methods"] += len(class_data.get("methods", []))
             api_data["total_properties"] += len(class_data.get("properties", []))
-    
+
     api_data["total_classes"] = len(api_data["classes"])
     
     print(f"完成! 解析了 {api_data['total_classes']} 个类, "

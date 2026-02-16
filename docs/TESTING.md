@@ -21,26 +21,10 @@
 **已实现的测试：**
 
 - ✅ `tests/unit/utils/test_helpers.py` - 工具函数测试
-  - `get_data_path()` - 路径获取
-  - `ensure_data_dir()` - 目录创建
-  - `save_json()` / `load_json()` - JSON 操作
-  - `clean_text()` - 文本清理
-  - `get_docs_path()` - 文档路径获取
-
 - ✅ `tests/unit/parser/test_html_parser.py` - HTML 解析器测试
-  - 类页面解析
-  - 方法提取
-  - 签名构建
-
 - ✅ `tests/unit/parser/test_build_index.py` - 索引构建测试
-  - 接口文件查找
-  - API 索引构建
-  - 错误处理
-
-**待实现的测试：**
-
-- ⏳ `tests/unit/indexer/test_search_index.py` - 搜索索引测试
-- ⏳ `tests/unit/mcp_server/test_server.py` - MCP 服务器测试
+- ✅ `tests/unit/indexer/test_search_index.py` - 搜索索引测试
+- ✅ `tests/unit/mcp_server/` - MCP 服务器测试
 
 ### 2. 集成测试 (`tests/integration/`)
 
@@ -49,8 +33,6 @@
 **已实现的测试：**
 
 - ✅ `tests/integration/test_parser_integration.py` - 解析器集成测试
-  - 真实文件解析
-  - BaseWeaponComponent 解析
 
 ## 运行测试
 
@@ -80,10 +62,10 @@ pytest tests/unit/utils/test_helpers.py::TestGetDataPath::test_default_path
 
 ```bash
 # 运行所有测试
-python run_tests.py
+python scripts/run_tests.py
 
 # 运行特定测试
-python run_tests.py tests/unit/utils/
+python scripts/run_tests.py tests/unit/utils/
 ```
 
 ### 测试覆盖率
@@ -128,17 +110,17 @@ from src.module import function
 
 class TestFunction:
     """测试 function 函数"""
-    
+
     def test_normal_case(self):
         """测试正常情况"""
         result = function("input")
         assert result == "expected"
-    
+
     def test_edge_case(self):
         """测试边界情况"""
         result = function("")
         assert result is None
-    
+
     @pytest.mark.parametrize("input,expected", [
         ("a", "A"),
         ("b", "B"),
@@ -191,7 +173,7 @@ def test_with_mock():
 # 示例 GitHub Actions 配置
 - name: Run tests
   run: |
-    pip install -r requirements.txt
+    pip install -e .
     pytest --cov=src --cov-report=xml
 ```
 
@@ -208,11 +190,3 @@ def test_with_mock():
 ```bash
 pytest -v
 ```
-
-## 待办事项
-
-- [ ] 实现索引系统的单元测试
-- [ ] 实现 MCP 服务器的单元测试
-- [ ] 添加性能测试
-- [ ] 添加端到端测试
-- [ ] 提高测试覆盖率到 80%+

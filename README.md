@@ -44,8 +44,9 @@
 
 2. **安装依赖**
    ```bash
-   pip install -r requirements.txt
+   pip install -e .
    ```
+   或使用 requirements.txt：`pip install -r requirements.txt`
 
 3. **构建索引**
    ```bash
@@ -67,13 +68,16 @@
    **自动生成配置**（推荐）：
    ```bash
    # 方法1: 使用专用脚本（推荐）
-   python generate_config.py
+   python scripts/generate_config.py
    
-   # 方法2: 使用单行命令
-   python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
+   # 方法2: 安装后使用命令
+   arma-reforger-mcp-config
+   
+   # 方法3: Windows PowerShell 自动写入配置
+   .\scripts\setup_cursor.ps1
    ```
 
-   > **虚拟环境说明**：如果您使用虚拟环境，`generate_config.py` 脚本会自动检测并使用虚拟环境中的 Python 解释器。如果没有检测到虚拟环境，将使用系统 Python。
+   > **虚拟环境说明**：脚本会自动检测并使用虚拟环境中的 Python 解释器。
 
    **手动配置**：
    ```json
@@ -187,10 +191,10 @@ AI 会自动调用相应的工具为你提供准确的 API 信息和代码示例
 
 ## 📚 文档
 
-- 📘 [安装和使用指南](INSTALLATION.md) - 详细的安装和配置说明
-- 🔧 [Cursor 集成指南](CURSOR_SETUP.md) - Cursor 集成步骤详解
-- 📖 [Wiki 集成说明](WIKI_INTEGRATION.md) - Wiki 页面集成和使用指南
-- 🧪 [测试文档](TESTING.md) - 测试说明和开发指南
+- 📘 [安装和使用指南](docs/INSTALLATION.md) - 详细的安装和配置说明
+- 🔧 [Cursor 集成指南](docs/CURSOR_SETUP.md) - Cursor 集成步骤详解
+- 📖 [Wiki 集成说明](docs/WIKI_INTEGRATION.md) - Wiki 页面集成和使用指南
+- 🧪 [测试文档](docs/TESTING.md) - 测试说明和开发指南
 - 📝 [更新日志](CHANGELOG.md) - 版本更新记录
 - 🌐 [ModelScope 页面](https://modelscope.cn/mcp/servers/ViVi141/Arma_Reforger_Tools_MCP) - 在 ModelScope 平台上查看和使用
 
@@ -211,4 +215,4 @@ AGPL-3.0 license
 
 ---
 
-**提示**：如果遇到问题，请查看 [安装指南](INSTALLATION.md) 或提交 Issue。
+**提示**：如果遇到问题，请查看 [安装指南](docs/INSTALLATION.md) 或提交 Issue。

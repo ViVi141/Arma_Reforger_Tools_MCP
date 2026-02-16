@@ -7,6 +7,7 @@ from typing import Dict, Any
 
 # 尝试导入，如果失败则跳过相关测试
 try:
+    from src.mcp_server.errors import APINotFoundError, InvalidParameterError
     from src.mcp_server.tools import (
         register_tools,
         handle_search_api,
@@ -81,10 +82,9 @@ class TestHandleSearchApi:
     @pytest.mark.asyncio
     async def test_search_api_empty_query(self):
         """测试空查询"""
-        result = await handle_search_api({"query": ""})
-        result_data = json.loads(result)
-        assert "error" in result_data
-        assert result_data["error"]["code"] == "INVALID_PARAMETER"
+        with pytest.raises(InvalidParameterError) as exc_info:
+            await handle_search_api({"query": ""})
+        assert exc_info.value.code.value == "INVALID_PARAMETER"
     
     @pytest.mark.asyncio
     async def test_search_api_both_sources(self):
@@ -119,7 +119,7 @@ class TestHandleGetClassInfo:
             "properties": []
         }
         
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {"TestClass": class_data}}):
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {"TestClass": class_data}}):
             result = await handle_get_class_info({
                 "class_name": "TestClass",
                 "api_source": "arma_reforger"
@@ -132,15 +132,13 @@ class TestHandleGetClassInfo:
     @pytest.mark.asyncio
     async def test_get_class_info_not_found(self):
         """测试类不存在"""
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {}}):
-            result = await handle_get_class_info({
-                "class_name": "NonExistent",
-                "api_source": "arma_reforger"
-            })
-            
-            result_data = json.loads(result)
-            assert "error" in result_data
-            assert result_data["error"]["code"] == "API_NOT_FOUND"
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {}}):
+            with pytest.raises(APINotFoundError) as exc_info:
+                await handle_get_class_info({
+                    "class_name": "NonExistent",
+                    "api_source": "arma_reforger"
+                })
+            assert exc_info.value.code.value == "API_NOT_FOUND"
     
     @pytest.mark.asyncio
     async def test_get_class_info_partial_match(self):
@@ -152,7 +150,7 @@ class TestHandleGetClassInfo:
             "properties": []
         }
         
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {"TestClass": class_data}}):
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {"TestClass": class_data}}):
             result = await handle_get_class_info({
                 "class_name": "Test",
                 "api_source": "arma_reforger"
@@ -181,7 +179,7 @@ class TestHandleGetFunctionInfo:
             ]
         }
         
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {"TestClass": class_data}}):
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {"TestClass": class_data}}):
             result = await handle_get_function_info({
                 "function_name": "TestMethod",
                 "class_name": "TestClass",
@@ -206,7 +204,7 @@ class TestHandleGetFunctionInfo:
             ]
         }
         
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {"TestClass": class_data}}):
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {"TestClass": class_data}}):
             result = await handle_get_function_info({
                 "function_name": "TestMethod",
                 "api_source": "arma_reforger"
@@ -242,9 +240,9 @@ class TestHandleFindRelatedApis:
     @pytest.mark.asyncio
     async def test_find_related_apis_empty_name(self):
         """测试空名称"""
-        result = await handle_find_related_apis({"api_name": ""})
-        result_data = json.loads(result)
-        assert "error" in result_data
+        with pytest.raises(InvalidParameterError) as exc_info:
+            await handle_find_related_apis({"api_name": ""})
+        assert exc_info.value.code.value == "INVALID_PARAMETER"
 
 
 @pytest.mark.skipif(not TOOLS_AVAILABLE, reason="MCP SDK not available")
@@ -264,7 +262,7 @@ class TestHandleGetCodeExamples:
             ]
         }
         
-        with patch("src.mcp_server.tools.load_json", return_value={"classes": {"TestClass": class_data}}):
+        with patch("src.mcp_server.tools.get_cached_api_data", return_value={"classes": {"TestClass": class_data}}):
             result = await handle_get_code_examples({
                 "api_name": "TestClass",
                 "api_source": "arma_reforger",
@@ -278,9 +276,9 @@ class TestHandleGetCodeExamples:
     @pytest.mark.asyncio
     async def test_get_code_examples_empty_name(self):
         """测试空名称"""
-        result = await handle_get_code_examples({"api_name": ""})
-        result_data = json.loads(result)
-        assert "error" in result_data
+        with pytest.raises(InvalidParameterError) as exc_info:
+            await handle_get_code_examples({"api_name": ""})
+        assert exc_info.value.code.value == "INVALID_PARAMETER"
 
 
 @pytest.mark.skipif(not TOOLS_AVAILABLE, reason="MCP SDK not available")
@@ -318,7 +316,7 @@ class TestGetRelationshipIndex:
             mock_instance = MagicMock()
             mock_class.return_value = mock_instance
             
-            with patch("src.mcp_server.tools.load_json", return_value={"classes": {}}):
+            with patch("src.utils.helpers.load_json", return_value={"classes": {}}):
                 result = get_relationship_index("arma_reforger")
                 # 可能返回 None 如果加载失败
                 assert result is None or result is not None

@@ -45,7 +45,7 @@ class TestGetApiIndex:
             }
         }
         
-        with patch("src.mcp_server.resources.load_json", return_value=api_data):
+        with patch("src.mcp_server.resources.get_cached_api_data", return_value=api_data):
             result = get_api_index()
             result_data = json.loads(result)
             
@@ -53,7 +53,7 @@ class TestGetApiIndex:
     
     def test_get_api_index_no_data(self):
         """测试无数据时获取索引"""
-        with patch("src.mcp_server.resources.load_json", return_value=None):
+        with patch("src.mcp_server.resources.get_cached_api_data", return_value=None):
             result = get_api_index()
             result_data = json.loads(result)
             # 应该返回空索引或默认结构
@@ -74,7 +74,7 @@ class TestGetClassResource:
         
         api_data = {"classes": {"TestClass": class_data}}
         
-        with patch("src.mcp_server.resources.load_json", return_value=api_data):
+        with patch("src.mcp_server.resources.get_cached_api_data", return_value=api_data):
             result = get_class_resource("TestClass")
             result_data = json.loads(result)
             
@@ -82,7 +82,7 @@ class TestGetClassResource:
     
     def test_get_class_resource_not_found(self):
         """测试类不存在"""
-        with patch("src.mcp_server.resources.load_json", return_value={"classes": {}}):
+        with patch("src.mcp_server.resources.get_cached_api_data", return_value={"classes": {}}):
             result = get_class_resource("NonExistent")
             result_data = json.loads(result)
             

@@ -6,15 +6,21 @@
 
 确保已完成：
 - ✅ 索引已构建（运行 `python -m src.parser.build_index --skip-parse`）
-- ✅ 依赖已安装（`pip install -r requirements.txt`）
+- ✅ 依赖已安装（`pip install -e .` 或 `pip install -r requirements.txt`）
 - ✅ 数据文件存在（`data/arma_reforger_api.json` 和 `data/search_index/arma_reforger/`）
 
 ### 2. 生成配置文件
 
-运行以下命令生成配置（会自动使用当前项目路径）：
+在项目根目录运行：
 
 ```bash
-python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
+python scripts/generate_config.py
+```
+
+或安装后使用：
+
+```bash
+arma-reforger-mcp-config
 ```
 
 **复制输出的 JSON 配置**
@@ -23,7 +29,7 @@ python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.v
 
 1. **打开配置文件**：
    - 路径：`%APPDATA%\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
-   - 或者：`C:\Users\74738\AppData\Roaming\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
+   - 或者：`C:\Users\[用户名]\AppData\Roaming\Cursor\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
 
 2. **添加配置**：
    - 如果文件不存在，创建它
@@ -44,12 +50,15 @@ python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.v
 - "查找与武器相关的类"
 - "获取 CharacterControllerComponent 的详细信息"
 
-## 配置文件示例
+## Windows 用户：自动配置
 
-**推荐：使用自动生成脚本**（在项目根目录运行）：
-```bash
-python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.venv' / 'Scripts' / 'python.exe'; cmd = str(venv) if venv.exists() else 'python'; config = {'mcpServers': {'arma-reforger-api': {'command': cmd, 'args': ['-m', 'src.mcp_server.server'], 'cwd': str(p), 'env': {'API_DATA_PATH': str(p / 'data'), 'LOG_LEVEL': 'INFO', 'PYTHONPATH': str(p)}}}}; print(json.dumps(config, indent=2, ensure_ascii=False))"
+使用 PowerShell 脚本自动写入配置：
+
+```powershell
+.\scripts\setup_cursor.ps1
 ```
+
+## 配置文件示例
 
 **手动配置示例**：
 ```json
@@ -57,10 +66,7 @@ python -c "import json; from pathlib import Path; p = Path.cwd(); venv = p / '.v
   "mcpServers": {
     "arma-reforger-api": {
       "command": "python",
-      "args": [
-        "-m",
-        "src.mcp_server.server"
-      ],
+      "args": ["-m", "src.mcp_server.server"],
       "cwd": "你的项目路径",
       "env": {
         "API_DATA_PATH": "你的项目路径/data",
@@ -116,5 +122,5 @@ python -m src.mcp_server.server
 
 ## 更多信息
 
-- 详细安装说明：`INSTALLATION.md`
-- 项目文档：`README.md`
+- 详细安装说明：[docs/INSTALLATION.md](INSTALLATION.md)
+- 项目文档：README.md

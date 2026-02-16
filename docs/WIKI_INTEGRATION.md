@@ -177,9 +177,9 @@ python -m src.parser.build_index --wiki-only --skip-parse
    - `Arma_Reforger_*.html` - HTML 文件
    - `Arma_Reforger_*.json` - JSON 元数据文件（可选）
 
-3. **索引构建时间**：根据 Wiki 页面数量，索引构建可能需要几分钟时间
+4. **索引构建时间**：根据 Wiki 页面数量，索引构建可能需要几分钟时间
 
-4. **搜索性能**：Wiki 搜索使用与 API 搜索相同的 Whoosh 全文搜索引擎，性能优异
+5. **搜索性能**：Wiki 搜索使用与 API 搜索相同的 Whoosh 全文搜索引擎，性能优异
 
 ## 故障排除
 
@@ -221,7 +221,3 @@ python -m src.parser.build_index --wiki-only --skip-parse
 - [ ] 支持 Wiki 页面之间的关系索引
 - [ ] 支持 Wiki 页面的版本历史
 - [ ] 支持多语言 Wiki 页面
-
----
-
-**最后更新**: 2024年

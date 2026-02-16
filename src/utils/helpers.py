@@ -56,6 +56,38 @@ def load_json(filename: str) -> Optional[Dict[str, Any]]:
         return json.load(f)
 
 
+# API 数据缓存（仅缓存 arma_reforger 和 enfusion，不含 Wiki）
+_api_data_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def get_cached_api_data(source: str) -> Optional[Dict[str, Any]]:
+    """
+    获取缓存的 API 数据，减少重复 I/O。
+    仅缓存 arma_reforger 和 enfusion，Wiki 数据结构不同需单独处理。
+    """
+    if source not in ("arma_reforger", "enfusion"):
+        return load_json(f"{source}_api.json")
+    if source not in _api_data_cache:
+        data = load_json(f"{source}_api.json")
+        if data is not None:
+            _api_data_cache[source] = data
+        return data
+    return _api_data_cache[source]
+
+
+def invalidate_api_cache(source: Optional[str] = None) -> None:
+    """
+    使 API 缓存失效。供测试或热重载使用。
+    Args:
+        source: 若指定则只清除该来源；若为 None 则清除全部。
+    """
+    global _api_data_cache
+    if source is None:
+        _api_data_cache.clear()
+    elif source in _api_data_cache:
+        del _api_data_cache[source]
+
+
 def clean_text(text: str) -> str:
     """清理文本，移除多余的空白字符"""
     if not text:

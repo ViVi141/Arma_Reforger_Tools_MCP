@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -20,6 +21,7 @@ except ImportError:
     print("错误: 未安装 MCP SDK。请运行: pip install mcp")
     sys.exit(1)
 
+from src.mcp_server.errors import APIError
 from src.mcp_server.tools import (
     register_tools,
     handle_search_api,
@@ -31,10 +33,11 @@ from src.mcp_server.tools import (
 from src.mcp_server.resources import register_resources
 from src.utils.helpers import get_data_path, ensure_data_dir, get_project_root
 
-# 配置日志
+# 配置日志（支持 LOG_LEVEL 环境变量）
+_log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, _log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -114,16 +117,18 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> Sequence[TextConten
             raise ValueError(f"未知的工具: {name}")
         
         return [TextContent(type="text", text=result)]
-        
+
+    except APIError as e:
+        return [TextContent(type="text", text=e.to_json())]
     except Exception as e:
         logger.error(f"工具调用错误: {e}", exc_info=True)
+        import json
         error_msg = {
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": str(e)
-            }
+                "message": str(e),
+            },
         }
-        import json
         return [TextContent(type="text", text=json.dumps(error_msg, ensure_ascii=False, indent=2))]
 
 
@@ -156,5 +161,10 @@ async def main():
         )
 
 
-if __name__ == "__main__":
+def main_sync() -> None:
+    """同步入口，供 setuptools console_scripts 使用"""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main_sync()

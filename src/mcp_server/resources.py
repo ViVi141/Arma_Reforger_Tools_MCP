@@ -3,7 +3,7 @@
 from typing import List
 from mcp.types import Resource
 
-from src.utils.helpers import load_json, get_data_path
+from src.utils.helpers import get_cached_api_data
 
 
 def register_resources() -> List[Resource]:
@@ -45,7 +45,7 @@ def get_api_index() -> str:
     }
     
     for source in ["arma_reforger", "enfusion"]:
-        api_data = load_json(f"{source}_api.json")
+        api_data = get_cached_api_data(source)
         if api_data:
             classes = api_data.get("classes", {})
             index_data[source] = {
@@ -61,7 +61,7 @@ def get_class_resource(class_name: str) -> str:
     import json
     
     for source in ["arma_reforger", "enfusion"]:
-        api_data = load_json(f"{source}_api.json")
+        api_data = get_cached_api_data(source)
         if api_data:
             classes = api_data.get("classes", {})
             if class_name in classes:
